@@ -149,6 +149,27 @@ components:
       required:
         - title
       type: object
+    CreateEnrolmentInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/CreateEnrolmentInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        course_id:
+          type: string
+        mode:
+          enum:
+            - self_study
+            - classroom
+          type: string
+      required:
+        - course_id
+        - mode
+      type: object
     CreateNamedInputBody:
       additionalProperties: false
       properties:
@@ -189,6 +210,52 @@ components:
         - kind
         - prompt
         - answer
+      type: object
+    EnrolmentBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/EnrolmentBody.json
+          format: uri
+          readOnly: true
+          type: string
+        course_id:
+          type: string
+        course_title:
+          type: string
+        id:
+          type: string
+        mode:
+          type: string
+        started_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - course_id
+        - mode
+        - started_at
+      type: object
+    EnrolmentListOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/EnrolmentListOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        enrolments:
+          items:
+            $ref: "#/components/schemas/EnrolmentBody"
+          type:
+            - array
+            - "null"
+      required:
+        - enrolments
       type: object
     ErrorDetail:
       additionalProperties: false
@@ -946,6 +1013,45 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
       summary: Add a topic to a course
+  /enrolments:
+    get:
+      operationId: listEnrolments
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnrolmentListOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: My library
+    post:
+      operationId: createEnrolment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEnrolmentInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnrolmentBody"
+          description: Created
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Enrol in a course
   /health:
     get:
       operationId: health
