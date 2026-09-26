@@ -1,0 +1,18 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_PASSWORD: wikipetia
+      POSTGRES_USER: wikipetia
+      POSTGRES_DB: wikipetia
+    ports:
+      - "5433:5432"
+    volumes:
+      - wikipetia_pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wikipetia"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+volumes:
+  wikipetia_pgdata:

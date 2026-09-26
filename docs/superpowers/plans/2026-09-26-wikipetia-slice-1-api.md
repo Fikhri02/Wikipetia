@@ -88,7 +88,9 @@ go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.
 export PATH="$PATH:$(go env GOPATH)/bin"
 sqlc version && migrate -version
 ```
-Expected: `v1.31.1` and `4.20.1`.
+Expected: `sqlc version` prints `v1.31.1`. **`migrate -version` prints `dev`** — `go install` builds carry no release ldflags, so this is correct, not a failure.
+
+Note: golang-migrate v4.20.1 requires Go >= 1.25.11, so the toolchain auto-switches (downloading a newer Go) just to build this CLI. That is expected and does not change the `api` module, which stays on Go 1.25.1. CI needs `GOTOOLCHAIN=auto`, which is the default.
 
 - [ ] **Step 3: Write `.gitignore`**
 
@@ -112,7 +114,10 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - wikipetia_pgdata:/var/lib/postgresql/data
+      # postgres:18+ expects the mount at /var/lib/postgresql, NOT at
+      # /var/lib/postgresql/data. The old path makes the container exit(1) with
+      # "PostgreSQL data in ... (unused mount/volume)".
+      - wikipetia_pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U wikipetia"]
       interval: 2s
@@ -173,7 +178,10 @@ go get github.com/danielgtaylor/huma/v2@v2.39.1
 go get github.com/jackc/pgx/v5@v5.11.0
 go get github.com/google/uuid@v1.6.0
 go get github.com/stretchr/testify@v1.12.1
+go mod tidy
 ```
+
+`go mod tidy` is required, not optional: testify v1.12.1 imports `go.yaml.in/yaml/v3` transitively, and without tidy every test fails at setup with `missing go.sum entry`.
 
 - [ ] **Step 7: Write the failing test** — `api/cmd/api/main_test.go`
 
@@ -335,9 +343,11 @@ Expected: PASS.
 
 ```bash
 make up
-make generate && head -5 api/openapi.yaml
+cd api && go run ./cmd/api -dump-openapi > openapi.yaml && head -3 openapi.yaml
 ```
-Expected: compose reports healthy; `openapi.yaml` starts with `openapi: 3.1.0`.
+Expected: compose reports healthy, and `grep '^openapi:' openapi.yaml` prints `openapi: 3.1.0`. The file does **not** begin with that line — huma emits YAML keys alphabetically, so `components:` comes first.
+
+Do **not** run `make generate` yet — it invokes sqlc, whose `sqlc.yaml` does not exist until Task 3. Dump the spec directly here.
 
 - [ ] **Step 13: Commit**
 
