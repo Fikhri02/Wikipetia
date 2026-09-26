@@ -124,6 +124,17 @@ contract drift that accumulates silently across endpoints.
 `openapi-typescript` generates `web/src/api/types.ts`; components import only generated types; CI fails a
 push where the spec or client is stale. This restores compile-time safety at the boundary.
 
+Two limits of that contract, both verified by generating against the real spec rather than assumed:
+
+- **`TypeScript` must stay on 5.x.** `openapi-typescript@7` declares `peer typescript@"^5.x"` and refuses
+  to install against TypeScript 6. The Vite scaffold defaults to 6.x, so the web setup pins 5.9.3
+  deliberately.
+- **Polymorphic `jsonb` fields arrive as `unknown`.** `blocks.content`, `blocks.completion` and
+  `questions.prompt` are `json.RawMessage` in Go, so the generated client gives them no shape. That is
+  honest — they genuinely vary by block type — but it means the web block registry gets no type safety
+  from the contract and must parse them at runtime, with one parser per block type mirroring the Go
+  `blockSpec` registry. Arrays likewise generate as `T[] | null`, because Go slices are nilable.
+
 ### Local-first, and auth deferred
 
 Nothing in slice 1 needs to be reachable from the internet. Postgres runs in one Docker container, the
