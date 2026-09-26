@@ -1,5 +1,55 @@
 components:
   schemas:
+    BlockBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/BlockBody.json
+          format: uri
+          readOnly: true
+          type: string
+        completion: {}
+        content: {}
+        id:
+          type: string
+        module_id:
+          type: string
+        sort_key:
+          type: string
+        title:
+          type: string
+        type:
+          type: string
+      required:
+        - id
+        - module_id
+        - title
+        - type
+        - sort_key
+        - content
+        - completion
+      type: object
+    BlockListOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/BlockListOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        blocks:
+          items:
+            $ref: "#/components/schemas/BlockBody"
+          type:
+            - array
+            - "null"
+      required:
+        - blocks
+      type: object
     CourseBody:
       additionalProperties: false
       properties:
@@ -45,6 +95,31 @@ components:
             - "null"
       required:
         - courses
+      type: object
+    CreateBlockInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/CreateBlockInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        completion: {}
+        content: {}
+        title:
+          maxLength: 200
+          type: string
+        type:
+          enum:
+            - reading
+            - video_youtube
+            - quiz
+          type: string
+      required:
+        - title
+        - type
       type: object
     CreateCourseInputBody:
       additionalProperties: false
@@ -237,6 +312,22 @@ components:
       required:
         - title
       type: object
+    UpdateBlockInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/UpdateBlockInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        completion: {}
+        content: {}
+        title:
+          maxLength: 200
+          type: string
+      type: object
     UpdateCourseInputBody:
       additionalProperties: false
       properties:
@@ -267,6 +358,79 @@ info:
   version: 0.1.0
 openapi: 3.1.0
 paths:
+  /blocks/{id}:
+    patch:
+      operationId: updateBlock
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBlockInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlockBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Update a block
+  /blocks/{id}/archive:
+    post:
+      operationId: archiveBlock
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Archive a block
+  /blocks/{id}/move:
+    post:
+      operationId: moveBlock
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoveInputBody"
+        required: true
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Reorder a block
   /courses:
     get:
       operationId: listCourses
@@ -547,6 +711,59 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
       summary: Archive a module
+  /modules/{id}/blocks:
+    get:
+      operationId: listBlocks
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlockListOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: List a module's blocks
+    post:
+      operationId: createBlock
+      parameters:
+        - description: Module id
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Module id
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBlockInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlockBody"
+          description: Created
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Add a block to a module
   /modules/{id}/move:
     post:
       operationId: moveModule
