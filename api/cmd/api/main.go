@@ -50,6 +50,7 @@ func (s *server) registerRoutes(api huma.API) {
 	s.registerQuestionRoutes(api)
 	s.registerOutlineRoutes(api)
 	s.registerEnrolmentRoutes(api)
+	s.registerProgressRoutes(api)
 }
 
 func newAPI(pool *pgxpool.Pool, devUserName string) (http.Handler, huma.API) {
