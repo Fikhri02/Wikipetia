@@ -1,5 +1,79 @@
 components:
   schemas:
+    CourseBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/CourseBody.json
+          format: uri
+          readOnly: true
+          type: string
+        description:
+          type: string
+        id:
+          type: string
+        pet_enabled:
+          type: boolean
+        title:
+          type: string
+        visibility:
+          type: string
+      required:
+        - id
+        - title
+        - description
+        - visibility
+        - pet_enabled
+      type: object
+    CourseListOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/CourseListOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        courses:
+          items:
+            $ref: "#/components/schemas/CourseBody"
+          type:
+            - array
+            - "null"
+      required:
+        - courses
+      type: object
+    CreateCourseInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/CreateCourseInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        description:
+          maxLength: 2000
+          type: string
+        pet_enabled:
+          type: boolean
+        title:
+          description: Course title
+          maxLength: 200
+          type: string
+        visibility:
+          enum:
+            - public
+            - unlisted
+            - private
+          type: string
+      required:
+        - title
+      type: object
     ErrorDetail:
       additionalProperties: false
       properties:
@@ -74,11 +148,145 @@ components:
       required:
         - status
       type: object
+    UpdateCourseInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/UpdateCourseInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        description:
+          maxLength: 2000
+          type: string
+        pet_enabled:
+          type: boolean
+        title:
+          maxLength: 200
+          type: string
+        visibility:
+          enum:
+            - public
+            - unlisted
+            - private
+          type: string
+      type: object
 info:
   title: WikiPetia
   version: 0.1.0
 openapi: 3.1.0
 paths:
+  /courses:
+    get:
+      operationId: listCourses
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseListOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: List courses I own
+    post:
+      operationId: createCourse
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCourseInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseBody"
+          description: Created
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Create a course
+  /courses/{id}:
+    get:
+      operationId: getCourse
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Get a course
+    patch:
+      operationId: updateCourse
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCourseInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Update a course
+  /courses/{id}/archive:
+    post:
+      operationId: archiveCourse
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Archive a course
   /health:
     get:
       operationId: health

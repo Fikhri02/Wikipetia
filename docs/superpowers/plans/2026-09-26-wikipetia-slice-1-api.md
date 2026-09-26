@@ -1385,13 +1385,22 @@ func newAPI(pool *pgxpool.Pool, devUserName string) (http.Handler, huma.API) {
 
 	registerHealth(api)
 
+	// Routes are ALWAYS registered, even with no pool: -dump-openapi runs
+	// without a database and the generated spec must still describe the whole
+	// API. Registering them only when a pool exists yields a spec containing
+	// just /health, which silently breaks the web plan that consumes it.
+	// Handlers are never invoked on the dump path, so a nil runner is safe.
+	var runner db.Runner
+	if pool != nil {
+		runner = db.PoolRunner{Pool: pool}
+	}
+	srv := &server{runner: runner}
+	srv.registerRoutes(api)
+
 	if pool == nil {
-		// Spec-dump and unit-test path: no database, no auth.
+		// Spec-dump path: no database, so no auth middleware either.
 		return mux, api
 	}
-
-	srv := &server{pool: pool}
-	srv.registerRoutes(api)
 
 	resolve := func(ctx context.Context, subject, name string) (uuid.UUID, error) {
 		var id uuid.UUID
@@ -2296,7 +2305,7 @@ func (s *server) registerRoutes(api huma.API) {
 }
 ```
 
-and in `newAPI`, replace `srv := &server{pool: pool}` with `srv := &server{runner: db.PoolRunner{Pool: pool}}`.
+`newAPI` already builds the runner (Task 5) — no change needed there beyond the `server` struct now holding a `db.Runner`.
 
 - [ ] **Step 11: Export the context writer in `auth`**
 

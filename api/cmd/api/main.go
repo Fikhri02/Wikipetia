@@ -53,13 +53,20 @@ func newAPI(pool *pgxpool.Pool, devUserName string) (http.Handler, huma.API) {
 
 	registerHealth(api)
 
+	// Routes are ALWAYS registered, even with no pool: -dump-openapi runs
+	// without a database and the generated spec must still describe the whole
+	// API. Handlers are never invoked on that path, so the nil runner is safe.
+	var runner db.Runner
+	if pool != nil {
+		runner = db.PoolRunner{Pool: pool}
+	}
+	srv := &server{runner: runner}
+	srv.registerRoutes(api)
+
 	if pool == nil {
-		// Spec-dump and unit-test path: no database, no auth.
+		// Spec-dump path: no database, so no auth middleware either.
 		return mux, api
 	}
-
-	srv := &server{runner: db.PoolRunner{Pool: pool}}
-	srv.registerRoutes(api)
 
 	resolve := func(ctx context.Context, subject, name string) (uuid.UUID, error) {
 		var id uuid.UUID
