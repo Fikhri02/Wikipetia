@@ -160,6 +160,24 @@ export default defineConfig({
 
 The dev proxy is a deliberate choice: the app always calls same-origin `/api/...`, so there is no CORS middleware to write, configure, or get wrong.
 
+- [ ] **Step 5b: Enable `strict` in `web/tsconfig.app.json`**
+
+The current Vite scaffold **omits `strict` entirely**, and `@tanstack/react-router` refuses to type itself without it — it resolves its own argument type to the string `"strictNullChecks must be enabled in tsconfig.json"`. Add to `compilerOptions`:
+
+```jsonc
+    /* Type safety — the Vite scaffold omits `strict` entirely, and
+       @tanstack/react-router refuses to type itself without strictNullChecks. */
+    "strict": true,
+```
+
+and widen `types` so Vitest globals resolve:
+
+```jsonc
+    "types": ["vite/client", "vitest/globals"],
+```
+
+**Also note what the typecheck command must be.** `npx tsc --noEmit` run in `web/` reports nothing and exits 0 — `tsconfig.json` is a solution file with `"files": []` and project references, so it checks *zero files*. Use **`npx tsc -b`**, which follows the references. Every typecheck in this plan uses `tsc -b` for that reason.
+
 - [ ] **Step 6: Write `web/src/index.css` and `web/src/test-setup.ts`**
 
 Tailwind 4 needs no config file and no PostCSS — one import is the whole setup.
@@ -218,13 +236,16 @@ web-dev:
 	cd web && npm run dev
 
 web-build: web-generate
-	cd web && npx tsc --noEmit && npx vite build
+	cd web && npx tsc -b && npx vite build
 
 web-test:
 	cd web && npx vitest run
 
 web-check: web-generate
-	cd web && npx tsc --noEmit
+	# `tsc --noEmit` is VACUOUS here: tsconfig.json has "files": [] with project
+	# references, so it checks zero files and exits 0. `tsc -b` follows the
+	# references and actually typechecks src.
+	cd web && npx tsc -b
 	cd web && npx vitest run
 	git diff --exit-code -- web/src/api/types.ts || \
 		(echo "web/src/api/types.ts is stale — run 'make web-generate' and commit it" && exit 1)
@@ -250,7 +271,7 @@ Expected: all three found.
 ```bash
 make web-build && make web-test
 ```
-Expected: `tsc` silent, `vite build` succeeds emitting `dist/manifest.webmanifest` and `dist/sw.js`, vitest reports no test files yet (that is fine at this step).
+Expected: `tsc -b` silent, `vite build` succeeds emitting `dist/manifest.webmanifest` and `dist/sw.js`, vitest reports no test files yet (that is fine at this step).
 
 - [ ] **Step 11: Commit**
 
@@ -644,7 +665,7 @@ Each is replaced by a later task; they exist now so Task 2 compiles and is indep
 ```bash
 make web-check
 ```
-Expected: `tsc` silent, error tests pass, generated types unchanged.
+Expected: `tsc -b` silent, error tests pass, generated types unchanged.
 
 ```bash
 git add -A && git commit -m "feat(web): typed client, problem+json narrowing, router and query wiring"
@@ -1239,7 +1260,7 @@ export function LibraryPage() {
 - [ ] **Step 7: Run, verify and commit**
 
 ```bash
-cd web && npx vitest run src/features/library && npx tsc --noEmit
+cd web && npx vitest run src/features/library && npx tsc -b
 ```
 Expected: five tests PASS, `tsc` silent.
 
@@ -1555,7 +1576,7 @@ The two "recorded but not enforced" notes are deliberate: the UI should not impl
 - [ ] **Step 6: Run, verify and commit**
 
 ```bash
-cd web && npx vitest run && npx tsc --noEmit
+cd web && npx vitest run && npx tsc -b
 ```
 Expected: all tests PASS.
 
@@ -2263,7 +2284,7 @@ describe('CourseBuilderPage', () => {
 - [ ] **Step 9: Run, verify and commit**
 
 ```bash
-cd web && npx vitest run && npx tsc --noEmit
+cd web && npx vitest run && npx tsc -b
 ```
 
 ```bash
@@ -2906,7 +2927,7 @@ export function QuestionEditor({
 - [ ] **Step 7: Run, verify and commit**
 
 ```bash
-cd web && npx vitest run && npx tsc --noEmit
+cd web && npx vitest run && npx tsc -b
 ```
 
 ```bash
@@ -3210,7 +3231,7 @@ export function BlockSurface({ block }: { enrolmentId: string; block: { title: s
 - [ ] **Step 5: Run, verify and commit**
 
 ```bash
-cd web && npx vitest run && npx tsc --noEmit
+cd web && npx vitest run && npx tsc -b
 ```
 
 ```bash
@@ -3476,7 +3497,7 @@ export function BlockSurface({
 
 - [ ] **Step 5: Run, verify and commit**
 
-Run: `cd web && npx vitest run src/blocks && npx tsc --noEmit`
+Run: `cd web && npx vitest run src/blocks && npx tsc -b`
 Expected: five BlockSurface tests PASS.
 
 `players.tsx` imports `VideoBlock` and `QuizBlock`, which Tasks 10 and 11 write. Create them as stubs now, the same way Tasks 6 and 8 did:
@@ -3710,7 +3731,7 @@ The absence of a "mark as done" button here is the whole point, and matches the 
 - [ ] **Step 6: Run, verify and commit**
 
 ```bash
-cd web && npx vitest run && npx tsc --noEmit
+cd web && npx vitest run && npx tsc -b
 ```
 
 ```bash
@@ -4034,7 +4055,7 @@ export function QuizBlock({ enrolmentId, block }: PlayerBlockProps) {
 - [ ] **Step 5: Run, verify and commit**
 
 ```bash
-cd web && npx vitest run && npx tsc --noEmit
+cd web && npx vitest run && npx tsc -b
 ```
 
 ```bash
@@ -4245,7 +4266,8 @@ Expected: each route renders an error banner naming a network error. Fix any scr
           git diff --exit-code -- src/api/types.ts
 
       - name: Typecheck
-        run: cd web && npx tsc --noEmit
+        # tsc -b, not --noEmit: see the Global Constraints note.
+        run: cd web && npx tsc -b
 
       - name: Unit tests
         run: cd web && npx vitest run

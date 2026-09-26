@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { apiError, fieldError } from './errors'
+import { apiError, asApiError, fieldError } from './errors'
 
 describe('apiError', () => {
   it('narrows a problem+json body into title, detail and field errors', () => {
@@ -54,5 +54,30 @@ describe('fieldError', () => {
     })
     expect(fieldError(err, 'title')).toBe('must not be empty')
     expect(fieldError(err, 'description')).toBeUndefined()
+  })
+})
+
+describe('asApiError', () => {
+  it('returns null for no error, so components can pass it straight to ErrorBanner', () => {
+    expect(asApiError(null)).toBeNull()
+    expect(asApiError(undefined)).toBeNull()
+  })
+
+  it('passes an ApiError through UNCHANGED, preserving its field errors', () => {
+    // TanStack Query types thrown values as Error, but our hooks throw ApiError.
+    // Re-narrowing an ApiError through apiError() would drop `fields`, which is
+    // exactly what the form-level error display depends on.
+    const original = apiError({
+      status: 422,
+      title: 'Unprocessable Entity',
+      errors: [{ location: 'body.title', message: 'must not be empty' }],
+    })
+    const passed = asApiError(original)
+    expect(passed).toEqual(original)
+    expect(passed?.fields['title']).toBe('must not be empty')
+  })
+
+  it('narrows anything else', () => {
+    expect(asApiError(new TypeError('Failed to fetch'))?.title).toBe('Network error')
   })
 })

@@ -49,7 +49,9 @@ export type TextPrompt = z.infer<typeof textPrompt>
 
 export type ParseResult<T> = { ok: true; data: T } | { ok: false; message: string }
 
-function run<T>(schema: z.ZodType<T>, value: unknown): ParseResult<T> {
+// Generic over the schema, not its output: `contentSchemas[type]` is a UNION of
+// ZodObject types, and `z.ZodType<T>` cannot infer one T from a union.
+function run<S extends z.ZodTypeAny>(schema: S, value: unknown): ParseResult<z.output<S>> {
   const parsed = schema.safeParse(value)
   if (parsed.success) return { ok: true, data: parsed.data }
   const first = parsed.error.issues[0]

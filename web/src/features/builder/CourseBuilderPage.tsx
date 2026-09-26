@@ -5,14 +5,14 @@ import { ModuleList } from './ModuleList'
 import { TopicPanel } from './TopicPanel'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { Spinner } from '../../components/Spinner'
-import type { ApiError } from '../../api/errors'
+import { asApiError } from '../../api/errors'
 
 export function CourseBuilderPage() {
   const { courseId } = useParams({ from: '/build/$courseId' })
   const outline = useOutline(courseId)
 
   if (outline.isLoading) return <Spinner />
-  if (outline.error) return <ErrorBanner error={outline.error as ApiError} />
+  if (outline.error) return <ErrorBanner error={asApiError(outline.error)} />
   if (!outline.data) return null
 
   const { course, topics, modules } = outline.data

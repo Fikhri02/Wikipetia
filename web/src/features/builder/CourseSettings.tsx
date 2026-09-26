@@ -4,7 +4,7 @@ import { Button } from '../../components/Button'
 import { Card } from '../../components/Card'
 import { Field } from '../../components/Field'
 import { ErrorBanner } from '../../components/ErrorBanner'
-import { fieldError, type ApiError } from '../../api/errors'
+import { asApiError, fieldError } from '../../api/errors'
 
 type Props = {
   courseId: string
@@ -17,7 +17,7 @@ type Props = {
 export function CourseSettings({ courseId, title, description, visibility, petEnabled }: Props) {
   const update = useUpdateCourse(courseId)
   const [draft, setDraft] = useState<CoursePatch>({ title, description })
-  const error = (update.error as ApiError | null) ?? null
+  const error = asApiError(update.error)
 
   return (
     <Card className="space-y-4">

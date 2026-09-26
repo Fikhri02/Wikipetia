@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { renderWithProviders } from '../../test-utils'
@@ -14,7 +15,9 @@ vi.mock('../../api/hooks', () => ({
 }))
 
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children, ...rest }: never) => <a {...(rest as object)}>{children}</a>,
+  Link: ({ children, ...rest }: { children?: ReactNode; [key: string]: unknown }) => (
+    <a {...(rest as Record<string, unknown>)}>{children}</a>
+  ),
 }))
 
 beforeEach(() => {

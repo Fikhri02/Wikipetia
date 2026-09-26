@@ -62,13 +62,16 @@ web-dev:
 	cd web && npm run dev
 
 web-build: web-generate
-	cd web && npx tsc --noEmit && npx vite build
+	cd web && npx tsc -b && npx vite build
 
 web-test:
 	cd web && npx vitest run
 
 web-check: web-generate
-	cd web && npx tsc --noEmit
+	# `tsc --noEmit` is VACUOUS here: tsconfig.json has "files": [] with project
+	# references, so it checks zero files and exits 0. `tsc -b` follows the
+	# references and actually typechecks src.
+	cd web && npx tsc -b
 	cd web && npx vitest run
 	git diff --exit-code -- web/src/api/types.ts || \
 		(echo "web/src/api/types.ts is stale — run 'make web-generate' and commit it" && exit 1)

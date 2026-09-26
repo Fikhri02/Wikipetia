@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen } from '@testing-library/react'
 import { renderWithProviders } from '../../test-utils'
@@ -7,7 +8,9 @@ const useOutline = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
   useParams: () => ({ courseId: 'c1' }),
-  Link: ({ children, ...rest }: never) => <a {...(rest as object)}>{children}</a>,
+  Link: ({ children, ...rest }: { children?: ReactNode; [key: string]: unknown }) => (
+    <a {...(rest as Record<string, unknown>)}>{children}</a>
+  ),
 }))
 vi.mock('../../api/hooks', async () => {
   const actual = await vi.importActual<typeof import('../../api/hooks')>('../../api/hooks')

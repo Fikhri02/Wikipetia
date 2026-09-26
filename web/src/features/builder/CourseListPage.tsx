@@ -7,14 +7,14 @@ import { EmptyState } from '../../components/EmptyState'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { Field } from '../../components/Field'
 import { Spinner } from '../../components/Spinner'
-import { fieldError, type ApiError } from '../../api/errors'
+import { asApiError, fieldError } from '../../api/errors'
 
 export function CourseListPage() {
   const courses = useMyCourses()
   const create = useCreateCourse()
   const [title, setTitle] = useState('')
 
-  const createError = (create.error as ApiError | null) ?? null
+  const createError = asApiError(create.error)
 
   return (
     <div className="space-y-8">
@@ -46,7 +46,7 @@ export function CourseListPage() {
       </section>
 
       <section className="space-y-2">
-        <ErrorBanner error={(courses.error as ApiError | null) ?? null} />
+        <ErrorBanner error={asApiError(courses.error)} />
         {courses.isLoading && <Spinner />}
 
         {!courses.isLoading && (courses.data ?? []).length === 0 && (

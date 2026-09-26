@@ -48,3 +48,25 @@ export function apiError(error: unknown): ApiError {
 export function fieldError(err: ApiError, field: string): string | undefined {
   return err.fields[field]
 }
+
+function isApiError(value: unknown): value is ApiError {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'title' in value &&
+    'detail' in value &&
+    'fields' in value
+  )
+}
+
+/**
+ * TanStack Query types a thrown value as `Error`, but our hooks throw `ApiError`.
+ * This converts at the component boundary without a cast, and — importantly —
+ * passes an existing ApiError through untouched: re-running it through
+ * `apiError()` would discard `fields`, which the form-level error display needs.
+ */
+export function asApiError(error: unknown): ApiError | null {
+  if (error === null || error === undefined) return null
+  if (isApiError(error)) return error
+  return apiError(error)
+}

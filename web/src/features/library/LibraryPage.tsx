@@ -5,7 +5,7 @@ import { Card } from '../../components/Card'
 import { EmptyState } from '../../components/EmptyState'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { Spinner } from '../../components/Spinner'
-import type { ApiError } from '../../api/errors'
+import { asApiError } from '../../api/errors'
 
 export function LibraryPage() {
   const enrolments = useEnrolments()
@@ -20,7 +20,7 @@ export function LibraryPage() {
       <section className="space-y-3">
         <h1 className="text-xl font-semibold tracking-tight">Library</h1>
 
-        <ErrorBanner error={(enrolments.error as ApiError | null) ?? null} />
+        <ErrorBanner error={asApiError(enrolments.error)} />
 
         {enrolments.isLoading && <Spinner />}
 
@@ -57,7 +57,7 @@ export function LibraryPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
             Your courses, not yet started
           </h2>
-          <ErrorBanner error={(enrol.error as ApiError | null) ?? null} />
+          <ErrorBanner error={asApiError(enrol.error)} />
           <ul className="space-y-2">
             {notStarted.map((c) => (
               <li key={c.id}>
