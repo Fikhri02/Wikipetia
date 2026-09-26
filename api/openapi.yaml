@@ -74,6 +74,22 @@ components:
       required:
         - title
       type: object
+    CreateNamedInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/CreateNamedInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        title:
+          maxLength: 200
+          type: string
+      required:
+        - title
+      type: object
     ErrorDetail:
       additionalProperties: false
       properties:
@@ -147,6 +163,79 @@ components:
           type: string
       required:
         - status
+      type: object
+    MoveInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/MoveInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        after:
+          description: Place immediately after this sibling
+          type: string
+        before:
+          description: Place immediately before this sibling
+          type: string
+      type: object
+    NamedBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/NamedBody.json
+          format: uri
+          readOnly: true
+          type: string
+        id:
+          type: string
+        sort_key:
+          type: string
+        title:
+          type: string
+      required:
+        - id
+        - title
+        - sort_key
+      type: object
+    NamedListOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/NamedListOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        items:
+          items:
+            $ref: "#/components/schemas/NamedBody"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+      type: object
+    RenameInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/RenameInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        title:
+          maxLength: 200
+          type: string
+      required:
+        - title
       type: object
     UpdateCourseInputBody:
       additionalProperties: false
@@ -287,6 +376,112 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
       summary: Archive a course
+  /courses/{id}/modules:
+    get:
+      operationId: listModules
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NamedListOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: List a course's modules
+    post:
+      operationId: createModule
+      parameters:
+        - description: Course id
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Course id
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNamedInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NamedBody"
+          description: Created
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Add a module to a course
+  /courses/{id}/topics:
+    get:
+      operationId: listTopics
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NamedListOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: List a course's topics
+    post:
+      operationId: createTopic
+      parameters:
+        - description: Course id
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Course id
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNamedInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NamedBody"
+          description: Created
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Add a topic to a course
   /health:
     get:
       operationId: health
@@ -304,3 +499,124 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
       summary: Liveness probe
+  /modules/{id}:
+    patch:
+      operationId: updateModule
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RenameInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NamedBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Rename a module
+  /modules/{id}/archive:
+    post:
+      operationId: archiveModule
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Archive a module
+  /modules/{id}/move:
+    post:
+      operationId: moveModule
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoveInputBody"
+        required: true
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Reorder a module
+  /topics/{id}:
+    patch:
+      operationId: updateTopic
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RenameInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NamedBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Rename a topic
+  /topics/{id}/archive:
+    post:
+      operationId: archiveTopic
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Archive a topic
