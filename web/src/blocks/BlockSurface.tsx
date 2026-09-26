@@ -1,9 +1,42 @@
-// Replaced in Task 9.
-export function BlockSurface({ block }: { enrolmentId: string; block: { title: string; type: string } }) {
+import { useCompleteBlock } from '../api/hooks'
+import { parseBlockContent } from './schemas'
+import { playerFor, type PlayerBlockData } from './players'
+import { ErrorBanner } from '../components/ErrorBanner'
+import { asApiError } from '../api/errors'
+
+export function BlockSurface({
+  enrolmentId,
+  block,
+}: {
+  enrolmentId: string
+  block: PlayerBlockData
+}) {
+  const complete = useCompleteBlock(enrolmentId)
+  const Player = playerFor(block.type)
+
+  if (!Player) {
+    return (
+      <p className="text-sm text-red-700">
+        This course uses a block type this app does not know: “{block.type}”.
+      </p>
+    )
+  }
+
+  // Quiz blocks carry no content, so only non-quiz payloads are gated here.
+  const parsed = parseBlockContent(block.type, block.content)
+  if (!parsed.ok && block.type !== 'quiz') {
+    return <p className="text-sm text-red-700">This block could not be displayed ({parsed.message}).</p>
+  }
+
   return (
-    <article className="space-y-2">
-      <h2 className="text-lg font-semibold">{block.title}</h2>
-      <p className="text-sm text-muted">The {block.type} surface arrives in Task 9.</p>
-    </article>
+    <div className="space-y-3">
+      <Player
+        enrolmentId={enrolmentId}
+        block={block}
+        pending={complete.isPending}
+        onComplete={(signal) => complete.mutate({ blockId: block.id, ...signal })}
+      />
+      <ErrorBanner error={asApiError(complete.error)} />
+    </div>
   )
 }

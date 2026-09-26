@@ -345,3 +345,50 @@ export function useArchiveQuestion(blockId: string, courseId: string) {
     },
   })
 }
+
+export function useCompleteBlock(enrolmentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: {
+      blockId: string
+      marked_done?: boolean
+      watched_to_end?: boolean
+    }) => {
+      const res = await api.POST('/enrolments/{enrolment_id}/blocks/{block_id}/complete', {
+        params: { path: { enrolment_id: enrolmentId, block_id: vars.blockId } },
+        body: { marked_done: vars.marked_done, watched_to_end: vars.watched_to_end },
+      })
+      return unwrap(res)
+    },
+    // Optimistic: marking a reading done should feel instantaneous.
+    onMutate: async (vars) => {
+      await qc.cancelQueries({ queryKey: qk.player(enrolmentId) })
+      const previous = qc.getQueryData(qk.player(enrolmentId))
+
+      qc.setQueryData(qk.player(enrolmentId), (old: unknown) => {
+        if (!old || typeof old !== 'object') return old
+        const view = old as {
+          blocks_completed: number
+          modules?: { blocks?: { id: string; status: string }[] | null }[] | null
+        }
+        let newlyCompleted = 0
+        const modules = (view.modules ?? []).map((m) => ({
+          ...m,
+          blocks: (m.blocks ?? []).map((b) => {
+            if (b.id !== vars.blockId || b.status === 'completed') return b
+            newlyCompleted += 1
+            return { ...b, status: 'completed' }
+          }),
+        }))
+        return { ...view, modules, blocks_completed: view.blocks_completed + newlyCompleted }
+      })
+
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) qc.setQueryData(qk.player(enrolmentId), context.previous)
+    },
+    // The server owns mastery and the real completion time; always reconcile.
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.player(enrolmentId) }),
+  })
+}
