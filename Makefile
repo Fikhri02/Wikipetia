@@ -49,3 +49,26 @@ check: boundaries
 
 seed: migrate-up
 	cd api && DATABASE_URL="$(DB_URL)" go run ./cmd/seed
+
+.PHONY: web-install web-generate web-dev web-build web-test web-check
+
+web-install:
+	cd web && npm ci
+
+web-generate:
+	cd web && npx openapi-typescript ../api/openapi.yaml -o src/api/types.ts
+
+web-dev:
+	cd web && npm run dev
+
+web-build: web-generate
+	cd web && npx tsc --noEmit && npx vite build
+
+web-test:
+	cd web && npx vitest run
+
+web-check: web-generate
+	cd web && npx tsc --noEmit
+	cd web && npx vitest run
+	git diff --exit-code -- web/src/api/types.ts || \
+		(echo "web/src/api/types.ts is stale — run 'make web-generate' and commit it" && exit 1)

@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: oklch(0.21 0.02 258);
+  --color-muted: oklch(0.55 0.02 258);
+  --color-line: oklch(0.92 0.01 258);
+  --color-accent: oklch(0.55 0.16 258);
+}
+
+html { color-scheme: light; }
+body { @apply bg-white text-ink antialiased; }

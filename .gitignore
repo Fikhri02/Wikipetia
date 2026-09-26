@@ -2,3 +2,7 @@ api/bin/
 node_modules/
 .env
 *.log
+web/node_modules/
+web/dist/
+web/dev-dist/
+web/test-results/
