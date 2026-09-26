@@ -1,0 +1,115 @@
+CREATE TABLE users (
+    id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    auth_subject text UNIQUE,
+    name         text NOT NULL,
+    created_at   timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE courses (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id    uuid NOT NULL REFERENCES users(id),
+    title       text NOT NULL,
+    description text NOT NULL DEFAULT '',
+    visibility  text NOT NULL DEFAULT 'private'
+                CHECK (visibility IN ('public','unlisted','private')),
+    pet_enabled boolean NOT NULL DEFAULT false,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    archived_at timestamptz
+);
+CREATE INDEX courses_owner_idx ON courses (owner_id) WHERE archived_at IS NULL;
+
+CREATE TABLE topics (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    course_id   uuid NOT NULL REFERENCES courses(id),
+    title       text NOT NULL,
+    sort_key    text NOT NULL,
+    archived_at timestamptz
+);
+CREATE INDEX topics_course_idx ON topics (course_id, sort_key) WHERE archived_at IS NULL;
+
+CREATE TABLE modules (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    course_id   uuid NOT NULL REFERENCES courses(id),
+    title       text NOT NULL,
+    sort_key    text NOT NULL,
+    archived_at timestamptz
+);
+CREATE INDEX modules_course_idx ON modules (course_id, sort_key) WHERE archived_at IS NULL;
+
+CREATE TABLE blocks (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    module_id   uuid NOT NULL REFERENCES modules(id),
+    title       text NOT NULL,
+    type        text NOT NULL CHECK (type IN ('reading','video_youtube','quiz')),
+    sort_key    text NOT NULL,
+    content     jsonb NOT NULL DEFAULT '{}'::jsonb,
+    completion  jsonb NOT NULL DEFAULT '{}'::jsonb,
+    archived_at timestamptz
+);
+CREATE INDEX blocks_module_idx ON blocks (module_id, sort_key) WHERE archived_at IS NULL;
+
+CREATE TABLE block_topics (
+    block_id uuid NOT NULL REFERENCES blocks(id) ON DELETE CASCADE,
+    topic_id uuid NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+    PRIMARY KEY (block_id, topic_id)
+);
+
+CREATE TABLE questions (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    block_id    uuid NOT NULL REFERENCES blocks(id),
+    topic_id    uuid REFERENCES topics(id),
+    kind        text NOT NULL CHECK (kind IN ('mcq_single','true_false','typed')),
+    prompt      jsonb NOT NULL,
+    answer      jsonb NOT NULL,
+    sort_key    text NOT NULL,
+    archived_at timestamptz
+);
+CREATE INDEX questions_block_idx ON questions (block_id, sort_key) WHERE archived_at IS NULL;
+
+CREATE TABLE enrolments (
+    id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id      uuid NOT NULL REFERENCES users(id),
+    course_id    uuid NOT NULL REFERENCES courses(id),
+    mode         text NOT NULL CHECK (mode IN ('self_study','classroom')),
+    class_id     uuid,
+    started_at   timestamptz NOT NULL DEFAULT now(),
+    completed_at timestamptz
+);
+CREATE UNIQUE INDEX enrolments_self_study_uniq
+    ON enrolments (user_id, course_id) WHERE class_id IS NULL;
+CREATE UNIQUE INDEX enrolments_class_uniq
+    ON enrolments (user_id, course_id, class_id) WHERE class_id IS NOT NULL;
+CREATE INDEX enrolments_user_idx ON enrolments (user_id);
+
+CREATE TABLE block_progress (
+    enrolment_id uuid NOT NULL REFERENCES enrolments(id),
+    block_id     uuid NOT NULL REFERENCES blocks(id),
+    status       text NOT NULL CHECK (status IN ('in_progress','completed')),
+    score        integer CHECK (score BETWEEN 0 AND 100),
+    attempts     integer NOT NULL DEFAULT 0,
+    completed_at timestamptz,
+    updated_at   timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (enrolment_id, block_id)
+);
+
+CREATE TABLE topic_mastery (
+    enrolment_id      uuid NOT NULL REFERENCES enrolments(id),
+    topic_id          uuid NOT NULL REFERENCES topics(id),
+    strength          double precision NOT NULL DEFAULT 0
+                      CHECK (strength >= 0 AND strength <= 1),
+    evidence_count    integer NOT NULL DEFAULT 0,
+    last_evidence_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at        timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (enrolment_id, topic_id)
+);
+
+CREATE TABLE events (
+    id           bigserial PRIMARY KEY,
+    occurred_at  timestamptz NOT NULL DEFAULT now(),
+    user_id      uuid NOT NULL REFERENCES users(id),
+    enrolment_id uuid REFERENCES enrolments(id),
+    kind         text NOT NULL,
+    payload      jsonb NOT NULL DEFAULT '{}'::jsonb,
+    consumed_at  timestamptz
+);
+CREATE INDEX events_unconsumed_idx ON events (id) WHERE consumed_at IS NULL;
