@@ -392,3 +392,26 @@ export function useCompleteBlock(enrolmentId: string) {
     onSettled: () => qc.invalidateQueries({ queryKey: qk.player(enrolmentId) }),
   })
 }
+
+export type SubmittedAnswer = {
+  question_id: string
+  choice_index?: number
+  boolean?: boolean
+  text?: string
+}
+
+export function useSubmitQuiz(enrolmentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { blockId: string; answers: SubmittedAnswer[] }) => {
+      const res = await api.POST('/enrolments/{enrolment_id}/blocks/{block_id}/submit', {
+        params: { path: { enrolment_id: enrolmentId, block_id: vars.blockId } },
+        body: { answers: vars.answers },
+      })
+      return unwrap(res)
+    },
+    // Not optimistic: only the server knows the score, and guessing it would be
+    // the one lie a learner would actually notice.
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.player(enrolmentId) }),
+  })
+}

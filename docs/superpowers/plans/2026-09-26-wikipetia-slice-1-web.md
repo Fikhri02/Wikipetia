@@ -3796,6 +3796,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, fireEvent } from '@testing-library/react'
 import { renderWithProviders } from '../test-utils'
 import { QuizBlock } from './QuizBlock'
+import type { PlayerBlockData } from './players'
 
 const submitMutate = vi.fn()
 const submitState = {
@@ -3828,7 +3829,9 @@ const block = {
     { id: 'q2', kind: 'true_false', prompt: { text: 'Iron is an element' } },
     { id: 'q3', kind: 'typed', prompt: { text: 'Symbol for iron?' } },
   ],
-} as never
+  // Typed rather than `as never`: the malformed-prompt test spreads this, and
+  // a `never` cannot be spread.
+} satisfies PlayerBlockData
 
 const props = { enrolmentId: 'e1', block, onComplete: vi.fn(), pending: false }
 
@@ -3908,7 +3911,7 @@ describe('QuizBlock', () => {
         { id: 'q1', kind: 'mcq_single', prompt: { nope: true } },
         { id: 'q2', kind: 'true_false', prompt: { text: 'Iron is an element' } },
       ],
-    } as never
+    } satisfies PlayerBlockData
     renderWithProviders(<QuizBlock {...props} block={broken} />)
 
     expect(screen.getByText(/could not be displayed/i)).toBeInTheDocument()
