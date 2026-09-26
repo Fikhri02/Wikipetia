@@ -61,3 +61,33 @@ jobs:
 
       - name: Test
         run: cd api && TEST_DATABASE_URL="$TEST_DB_URL" go test ./... -count=1
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.1'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: cd web && npm ci
+
+      - name: Generated client is up to date
+        run: |
+          cd web && npx openapi-typescript ../api/openapi.yaml -o src/api/types.ts
+          git diff --exit-code -- src/api/types.ts
+
+      - name: Typecheck
+        # tsc -b, not --noEmit: web/tsconfig.json is a solution file with
+        # "files": [], so --noEmit checks zero files and exits 0.
+        run: cd web && npx tsc -b
+
+      - name: Unit tests
+        run: cd web && npx vitest run
+
+      - name: Build
+        run: cd web && npx vite build

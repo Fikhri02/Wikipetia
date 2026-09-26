@@ -927,10 +927,25 @@ export const qk = {
   questions: (blockId: string) => ['blocks', blockId, 'questions'] as const,
 }
 
-/** Throws a narrowed ApiError so every component handles one shape. */
-function unwrap<T>(result: { data?: T; error?: unknown }): T {
+/**
+ * Throws a narrowed ApiError so every component handles one shape.
+ *
+ * The `response.ok` check is not belt-and-braces. A dead API behind the Vite
+ * dev proxy answers 500 with a plain-text body, so openapi-fetch leaves `error`
+ * undefined — and returning `undefined` then made a down server render as an
+ * EMPTY library, telling the learner they had no courses. Exported for tests.
+ */
+export function unwrap<T>(result: { data?: T; error?: unknown; response: Response }): T {
   if (result.error !== undefined) throw apiError(result.error)
-  return result.data as T
+  if (!result.response.ok) {
+    throw apiError(
+      new Error(`server returned ${result.response.status} ${result.response.statusText}`.trim()),
+    )
+  }
+  if (result.data === undefined) {
+    throw apiError(new Error('the server returned an empty response body'))
+  }
+  return result.data
 }
 
 export type { ApiError }
