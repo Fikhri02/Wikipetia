@@ -143,6 +143,11 @@ export default defineConfig({
     }),
   ],
   server: {
+    // A dedicated port: 5173 is Vite's default and is frequently already taken
+    // by another project on this machine. strictPort makes a clash fail loudly
+    // instead of silently drifting to another port and breaking the e2e baseURL.
+    port: 5180,
+    strictPort: true,
     // The API runs on 8080; proxying keeps the browser on one origin, so no
     // CORS configuration is needed on the Go side.
     proxy: {
@@ -4100,10 +4105,10 @@ import { defineConfig } from '@playwright/test'
 export default defineConfig({
   testDir: './e2e',
   timeout: 30_000,
-  use: { baseURL: 'http://localhost:5173', trace: 'on-first-retry' },
+  use: { baseURL: 'http://localhost:5180', trace: 'on-first-retry' },
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:5173',
+    url: 'http://localhost:5180',
     reuseExistingServer: true,
     timeout: 60_000,
   },
@@ -4158,13 +4163,19 @@ test('build a course, study it, and see mastery move', async ({ page }) => {
   await page.getByRole('button', { name: /edit check yourself/i }).click()
   await page.getByLabel('Question').fill('Iron is an element')
   await page.getByLabel('Kind').selectOption('true_false')
-  await page.getByLabel('Topic').selectOption({ label: 'Atoms' })
+  // exact: "Topic" is a substring of "New topic" in the topic panel, and
+  // Playwright label matching is substring-based by default.
+  await page.getByLabel('Topic', { exact: true }).selectOption({ label: 'Atoms' })
   await page.getByRole('button', { name: 'Add question' }).click()
 
   // --- study ---
   await page.getByRole('link', { name: 'Library' }).click()
   await page.getByRole('button', { name: `Start ${courseTitle}` }).click()
-  await page.getByText(courseTitle).click()
+  // Enrolling moves the course out of "not yet started" and into the enrolment
+  // list. Waiting for the button to go means the enrolment landed — and avoids
+  // matching both the card title and the "Start <title>" button at once.
+  await expect(page.getByRole('button', { name: `Start ${courseTitle}` })).toHaveCount(0)
+  await page.getByText(courseTitle, { exact: true }).click()
 
   await expect(page.getByRole('progressbar', { name: 'Completed' })).toHaveAttribute(
     'aria-valuenow',

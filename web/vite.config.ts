@@ -22,6 +22,11 @@ export default defineConfig({
     }),
   ],
   server: {
+    // A dedicated port: 5173 is Vite's default and is frequently already taken
+    // by another project on this machine. strictPort makes a clash fail loudly
+    // instead of silently drifting to another port and breaking the e2e baseURL.
+    port: 5180,
+    strictPort: true,
     // The API runs on 8080; proxying keeps the browser on one origin, so no
     // CORS configuration is needed on the Go side.
     proxy: {

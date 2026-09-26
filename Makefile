@@ -75,3 +75,9 @@ web-check: web-generate
 	cd web && npx vitest run
 	git diff --exit-code -- web/src/api/types.ts || \
 		(echo "web/src/api/types.ts is stale — run 'make web-generate' and commit it" && exit 1)
+
+.PHONY: e2e
+
+# Requires the API on :8080 — run `make run` in another terminal first.
+e2e:
+	cd web && npx playwright test
