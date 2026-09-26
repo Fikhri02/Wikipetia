@@ -8572,11 +8572,17 @@ done < <(find api/internal -name '*.go' ! -name '*_test.go')
 
 # Rule 3: no SQL outside the generated code and the query files.
 # All SQL lives in db/queries as sqlc sources (spec section 5).
+#
+# The match is deliberately narrow: UPPERCASE keywords only, at a word
+# boundary, on a line that also contains a quote or backtick. A case-insensitive
+# match flags English prose -- "multi-select and set replacement" in a comment
+# contains both "select" and "set", which is a false positive this check hit on
+# its very first run.
 while IFS= read -r file; do
     case "$file" in
         api/internal/platform/sqlcgen/*) continue ;;
     esac
-    if grep -qiE '(SELECT|INSERT INTO|UPDATE .* SET|DELETE FROM)[[:space:]]' "$file"; then
+    if grep -qE '["`].*\b(SELECT|INSERT INTO|UPDATE|DELETE FROM)\b' "$file"; then
         fail "$file appears to contain inline SQL"
     fi
 done < <(find api/internal api/cmd -name '*.go' ! -name '*_test.go')

@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: wikipetia
+          POSTGRES_PASSWORD: wikipetia
+          POSTGRES_DB: wikipetia_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U wikipetia"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      TEST_DB_URL: postgres://wikipetia:wikipetia@localhost:5433/wikipetia_test?sslmode=disable
+      # golang-migrate v4.20.1 requires a newer Go than the api module pins, so
+      # the toolchain must be free to switch when building that CLI.
+      GOTOOLCHAIN: auto
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.1'
+          cache-dependency-path: api/go.sum
+
+      - name: Install tools
+        run: |
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
+          go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.20.1
+
+      - name: Migrate test database
+        run: $(go env GOPATH)/bin/migrate -path api/db/migrations -database "$TEST_DB_URL" up
+
+      - name: Boundaries
+        run: ./scripts/check-boundaries.sh
+
+      - name: Vet
+        run: cd api && go vet ./...
+
+      - name: sqlc is up to date
+        run: cd api && $(go env GOPATH)/bin/sqlc diff
+
+      - name: openapi.yaml is up to date
+        run: |
+          cd api && go run ./cmd/api -dump-openapi > /tmp/openapi.check.yaml
+          diff -u openapi.yaml /tmp/openapi.check.yaml
+
+      - name: Test
+        run: cd api && TEST_DATABASE_URL="$TEST_DB_URL" go test ./... -count=1

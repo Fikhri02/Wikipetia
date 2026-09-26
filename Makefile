@@ -33,3 +33,19 @@ run: migrate-up
 
 psql: up
 	docker compose exec db psql -U wikipetia -d wikipetia
+
+.PHONY: boundaries check seed
+
+boundaries:
+	./scripts/check-boundaries.sh
+
+check: boundaries
+	cd api && go vet ./...
+	cd api && $(GOBIN)/sqlc diff
+	cd api && go run ./cmd/api -dump-openapi > /tmp/openapi.check.yaml
+	diff -q api/openapi.yaml /tmp/openapi.check.yaml || \
+		(echo "openapi.yaml is stale — run 'make generate' and commit it" && exit 1)
+	$(MAKE) test
+
+seed: migrate-up
+	cd api && DATABASE_URL="$(DB_URL)" go run ./cmd/seed
