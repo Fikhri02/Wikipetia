@@ -376,6 +376,21 @@ components:
       required:
         - status
       type: object
+    Item:
+      additionalProperties: false
+      properties:
+        boolean:
+          type: boolean
+        choice_index:
+          format: int64
+          type: integer
+        question_id:
+          type: string
+        text:
+          type: string
+      required:
+        - question_id
+      type: object
     MoveInputBody:
       additionalProperties: false
       properties:
@@ -548,6 +563,17 @@ components:
       required:
         - questions
       type: object
+    QuestionResultBody:
+      additionalProperties: false
+      properties:
+        correct:
+          type: boolean
+        question_id:
+          type: string
+      required:
+        - question_id
+        - correct
+      type: object
     RenameInputBody:
       additionalProperties: false
       properties:
@@ -583,6 +609,58 @@ components:
       required:
         - topic_ids
       type: object
+    SubmitQuizInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/SubmitQuizInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        answers:
+          items:
+            $ref: "#/components/schemas/Item"
+          type:
+            - array
+            - "null"
+      required:
+        - answers
+      type: object
+    SubmitQuizOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/SubmitQuizOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        mastery:
+          items:
+            $ref: "#/components/schemas/TopicStrengthBody"
+          type:
+            - array
+            - "null"
+        progress:
+          $ref: "#/components/schemas/BlockProgressBody"
+        results:
+          items:
+            $ref: "#/components/schemas/QuestionResultBody"
+          type:
+            - array
+            - "null"
+        score:
+          format: int64
+          type: integer
+      required:
+        - score
+        - progress
+        - results
+        - mastery
+      type: object
     TopicIDsOutputBody:
       additionalProperties: false
       properties:
@@ -601,6 +679,21 @@ components:
             - "null"
       required:
         - topic_ids
+      type: object
+    TopicStrengthBody:
+      additionalProperties: false
+      properties:
+        level:
+          type: string
+        strength:
+          format: double
+          type: number
+        topic_id:
+          type: string
+      required:
+        - topic_id
+        - strength
+        - level
       type: object
     UpdateBlockInputBody:
       additionalProperties: false
@@ -1131,6 +1224,40 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
       summary: Report a completion signal for a reading or video block
+  /enrolments/{enrolment_id}/blocks/{block_id}/submit:
+    post:
+      operationId: submitQuiz
+      parameters:
+        - in: path
+          name: enrolment_id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: block_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitQuizInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmitQuizOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Submit quiz answers for server-side grading
   /health:
     get:
       operationId: health
