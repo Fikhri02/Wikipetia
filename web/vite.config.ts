@@ -38,5 +38,8 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test-setup.ts'],
     css: false,
+    // Scope Vitest to src: e2e/ holds Playwright specs, whose `test`/`expect`
+    // come from @playwright/test and fail under Vitest.
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
 })
