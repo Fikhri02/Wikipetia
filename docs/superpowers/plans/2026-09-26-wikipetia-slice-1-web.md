@@ -3597,6 +3597,17 @@ Run: `cd web && npx vitest run src/blocks/useYouTubePlayer.test.ts`
 ```ts
 import { useEffect, useRef, useState } from 'react'
 
+/**
+ * @types/youtube declares the YT namespace but NOT this global callback, which
+ * is how the IFrame API announces readiness. Declaring it here keeps the loader
+ * cast-free.
+ */
+declare global {
+  interface Window {
+    onYouTubeIframeAPIReady?: () => void
+  }
+}
+
 let apiPromise: Promise<typeof YT> | null = null
 
 /** Test-only hook to clear module state between cases. */
