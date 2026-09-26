@@ -72,3 +72,51 @@ export function useEnrol() {
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.enrolments }),
   })
 }
+
+export function useCreateCourse() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (title: string) => {
+      const res = await api.POST('/courses', { body: { title } })
+      return unwrap(res)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.courses }),
+  })
+}
+
+export type CoursePatch = {
+  title?: string
+  description?: string
+  visibility?: 'public' | 'unlisted' | 'private'
+  pet_enabled?: boolean
+}
+
+export function useUpdateCourse(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (patch: CoursePatch) => {
+      const res = await api.PATCH('/courses/{id}', {
+        params: { path: { id: courseId } },
+        body: patch,
+      })
+      return unwrap(res)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.courses })
+      qc.invalidateQueries({ queryKey: qk.outline(courseId) })
+    },
+  })
+}
+
+export function useArchiveCourse() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (courseId: string) => {
+      const res = await api.POST('/courses/{id}/archive', {
+        params: { path: { id: courseId } },
+      })
+      if (res.error !== undefined) throw apiError(res.error)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.courses }),
+  })
+}
