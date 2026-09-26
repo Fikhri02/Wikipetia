@@ -321,6 +321,72 @@ components:
       required:
         - items
       type: object
+    OutlineBlockBody:
+      additionalProperties: false
+      properties:
+        question_count:
+          format: int64
+          type: integer
+        topic_ids:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+      required:
+        - topic_ids
+        - question_count
+      type: object
+    OutlineModuleBody:
+      additionalProperties: false
+      properties:
+        blocks:
+          items:
+            $ref: "#/components/schemas/OutlineBlockBody"
+          type:
+            - array
+            - "null"
+        id:
+          type: string
+        sort_key:
+          type: string
+        title:
+          type: string
+      required:
+        - id
+        - title
+        - sort_key
+        - blocks
+      type: object
+    OutlineOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/OutlineOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        course:
+          $ref: "#/components/schemas/CourseBody"
+        modules:
+          items:
+            $ref: "#/components/schemas/OutlineModuleBody"
+          type:
+            - array
+            - "null"
+        topics:
+          items:
+            $ref: "#/components/schemas/NamedBody"
+          type:
+            - array
+            - "null"
+      required:
+        - course
+        - topics
+        - modules
+      type: object
     QuestionBody:
       additionalProperties: false
       properties:
@@ -804,6 +870,29 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
       summary: Add a module to a course
+  /courses/{id}/outline:
+    get:
+      operationId: getCourseOutline
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutlineOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Get a whole course in one request
   /courses/{id}/topics:
     get:
       operationId: listTopics
