@@ -1829,10 +1829,13 @@ func TestGetRejectsNonOwner(t *testing.T) {
 	var owner, stranger uuid.UUID
 	require.NoError(t, runner.Tx(ctx, func(q *sqlcgen.Queries) error {
 		var err error
-		if owner, err = user.Store{}.EnsureBySubject(ctx, q, "dev|owner", "owner"); err != nil {
+		// A composite literal in an `if` header is ambiguous to the Go parser
+		// ("expected boolean expression, found assignment"), so `store` is
+		// built outside the closure rather than written inline here.
+		if owner, err = store.EnsureBySubject(ctx, q, "dev|owner", "owner"); err != nil {
 			return err
 		}
-		stranger, err = user.Store{}.EnsureBySubject(ctx, q, "dev|stranger", "stranger")
+		stranger, err = store.EnsureBySubject(ctx, q, "dev|stranger", "stranger")
 		return err
 	}))
 
@@ -1906,10 +1909,13 @@ func TestArchiveRejectsNonOwner(t *testing.T) {
 	var owner, stranger uuid.UUID
 	require.NoError(t, runner.Tx(ctx, func(q *sqlcgen.Queries) error {
 		var err error
-		if owner, err = user.Store{}.EnsureBySubject(ctx, q, "dev|owner", "owner"); err != nil {
+		// A composite literal in an `if` header is ambiguous to the Go parser
+		// ("expected boolean expression, found assignment"), so `store` is
+		// built outside the closure rather than written inline here.
+		if owner, err = store.EnsureBySubject(ctx, q, "dev|owner", "owner"); err != nil {
 			return err
 		}
-		stranger, err = user.Store{}.EnsureBySubject(ctx, q, "dev|stranger", "stranger")
+		stranger, err = store.EnsureBySubject(ctx, q, "dev|stranger", "stranger")
 		return err
 	}))
 
@@ -2748,12 +2754,15 @@ func fixture(t *testing.T) (svc *course.Service, ctx context.Context, owner, str
 	c, runner := pgtest.NewRunner(t)
 	svc = course.New(runner)
 
+	store := user.Store{}
 	require.NoError(t, runner.Tx(c, func(q *sqlcgen.Queries) error {
 		var err error
-		if owner, err = user.Store{}.EnsureBySubject(c, q, "dev|owner", "owner"); err != nil {
+		// Built outside the closure: a composite literal in an `if` header is
+		// ambiguous to the Go parser.
+		if owner, err = store.EnsureBySubject(c, q, "dev|owner", "owner"); err != nil {
 			return err
 		}
-		stranger, err = user.Store{}.EnsureBySubject(c, q, "dev|stranger", "stranger")
+		stranger, err = store.EnsureBySubject(c, q, "dev|stranger", "stranger")
 		return err
 	}))
 
@@ -6645,13 +6654,16 @@ func newScene(t *testing.T) scene {
 	t.Helper()
 	ctx, runner := pgtest.NewRunner(t)
 
+	store := user.Store{}
 	var learner, stranger uuid.UUID
 	require.NoError(t, runner.Tx(ctx, func(q *sqlcgen.Queries) error {
 		var err error
-		if learner, err = user.Store{}.EnsureBySubject(ctx, q, "dev|learner", "learner"); err != nil {
+		// Built outside the closure: a composite literal in an `if` header is
+		// ambiguous to the Go parser.
+		if learner, err = store.EnsureBySubject(ctx, q, "dev|learner", "learner"); err != nil {
 			return err
 		}
-		stranger, err = user.Store{}.EnsureBySubject(ctx, q, "dev|stranger", "stranger")
+		stranger, err = store.EnsureBySubject(ctx, q, "dev|stranger", "stranger")
 		return err
 	}))
 

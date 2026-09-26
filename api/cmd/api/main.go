@@ -44,7 +44,7 @@ func registerHealth(api huma.API) {
 }
 
 func (s *server) registerRoutes(api huma.API) {
-	// Filled in by later tasks.
+	s.registerCourseRoutes(api)
 }
 
 func newAPI(pool *pgxpool.Pool, devUserName string) (http.Handler, huma.API) {
