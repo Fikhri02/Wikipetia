@@ -258,3 +258,90 @@ export function useMoveBlock(courseId: string) {
     onSettled: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
   })
 }
+
+export function useCreateTopic(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (title: string) => {
+      const res = await api.POST('/courses/{id}/topics', {
+        params: { path: { id: courseId } },
+        body: { title },
+      })
+      return unwrap(res)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
+  })
+}
+
+export function useArchiveTopic(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.POST('/topics/{id}/archive', { params: { path: { id } } })
+      if (res.error !== undefined) throw apiError(res.error)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
+  })
+}
+
+export function useSetBlockTopics(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { blockId: string; topicIds: string[] }) => {
+      const res = await api.PUT('/blocks/{id}/topics', {
+        params: { path: { id: vars.blockId } },
+        body: { topic_ids: vars.topicIds },
+      })
+      return unwrap(res)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
+  })
+}
+
+export function useQuestions(blockId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: qk.questions(blockId),
+    enabled,
+    queryFn: async () => {
+      const res = await api.GET('/blocks/{id}/questions', { params: { path: { id: blockId } } })
+      return list(unwrap(res).questions)
+    },
+  })
+}
+
+export function useCreateQuestion(blockId: string, courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: {
+      kind: 'mcq_single' | 'true_false' | 'typed'
+      topic_id?: string
+      prompt: unknown
+      answer: unknown
+    }) => {
+      const res = await api.POST('/blocks/{id}/questions', {
+        params: { path: { id: blockId } },
+        body: vars,
+      })
+      return unwrap(res)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.questions(blockId) })
+      // question_count lives on the outline.
+      qc.invalidateQueries({ queryKey: qk.outline(courseId) })
+    },
+  })
+}
+
+export function useArchiveQuestion(blockId: string, courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.POST('/questions/{id}/archive', { params: { path: { id } } })
+      if (res.error !== undefined) throw apiError(res.error)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.questions(blockId) })
+      qc.invalidateQueries({ queryKey: qk.outline(courseId) })
+    },
+  })
+}
