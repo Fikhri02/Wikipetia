@@ -425,9 +425,12 @@ service-worker content caching arrives with slice 2, where offline flashcards ac
 1. **The domain returns sentinel errors; only one place knows HTTP.** `internal/*` returns `ErrNotFound`,
    `ErrForbidden`, `ErrConflict`, `ErrValidation` wrapping context. A single mapper in `cmd/api` turns
    them into status codes. No domain package imports `net/http`.
-2. **Errors are `application/problem+json`** — `{type, title, status, detail, errors: [{field, message}]}`,
-   emitted natively by huma and narrowed by the generated TS client. Field-level `errors[]` map straight
-   onto builder form fields.
+2. **Errors are `application/problem+json`**, emitted natively by huma and narrowed by the generated TS
+   client. The exact shape, verified against huma v2.39.1 rather than assumed:
+   `{$schema, title, status, detail, errors: [{message, location, value}]}` — note `location`
+   (e.g. `body.title`), **not** `field`. The builder maps `location` onto form fields by stripping the
+   `body.` prefix. **Shape-validation failures return 422, not 400**; `400` is reserved for malformed
+   requests huma rejects before validation.
 3. **Validation is two distinct layers.** Shape validation at the huma boundary via struct tags (is this a
    string, is it under 200 chars). Business rules in the domain (does this topic belong to this course, is
    the threshold between 0 and 100). Conflating them puts business rules in handlers, where they get
