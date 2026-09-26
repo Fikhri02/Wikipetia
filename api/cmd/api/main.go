@@ -47,6 +47,7 @@ func (s *server) registerRoutes(api huma.API) {
 	s.registerCourseRoutes(api)
 	s.registerStructureRoutes(api)
 	s.registerBlockRoutes(api)
+	s.registerQuestionRoutes(api)
 }
 
 func newAPI(pool *pgxpool.Pool, devUserName string) (http.Handler, huma.API) {

@@ -165,6 +165,31 @@ components:
       required:
         - title
       type: object
+    CreateQuestionInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/CreateQuestionInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        answer: {}
+        kind:
+          enum:
+            - mcq_single
+            - true_false
+            - typed
+          type: string
+        prompt: {}
+        topic_id:
+          type: string
+      required:
+        - kind
+        - prompt
+        - answer
+      type: object
     ErrorDetail:
       additionalProperties: false
       properties:
@@ -296,6 +321,55 @@ components:
       required:
         - items
       type: object
+    QuestionBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/QuestionBody.json
+          format: uri
+          readOnly: true
+          type: string
+        answer: {}
+        block_id:
+          type: string
+        id:
+          type: string
+        kind:
+          type: string
+        prompt: {}
+        sort_key:
+          type: string
+        topic_id:
+          type: string
+      required:
+        - id
+        - block_id
+        - kind
+        - prompt
+        - answer
+        - sort_key
+      type: object
+    QuestionListOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/QuestionListOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        questions:
+          items:
+            $ref: "#/components/schemas/QuestionBody"
+          type:
+            - array
+            - "null"
+      required:
+        - questions
+      type: object
     RenameInputBody:
       additionalProperties: false
       properties:
@@ -311,6 +385,44 @@ components:
           type: string
       required:
         - title
+      type: object
+    SetTopicsInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/SetTopicsInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        topic_ids:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+      required:
+        - topic_ids
+      type: object
+    TopicIDsOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/TopicIDsOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        topic_ids:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+      required:
+        - topic_ids
       type: object
     UpdateBlockInputBody:
       additionalProperties: false
@@ -351,6 +463,21 @@ components:
             - public
             - unlisted
             - private
+          type: string
+      type: object
+    UpdateQuestionInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/UpdateQuestionInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        answer: {}
+        prompt: {}
+        topic_id:
           type: string
       type: object
 info:
@@ -431,6 +558,90 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
       summary: Reorder a block
+  /blocks/{id}/questions:
+    get:
+      operationId: listQuestions
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionListOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: List a quiz block's questions, with answers (author only)
+    post:
+      operationId: createQuestion
+      parameters:
+        - description: Block id
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Block id
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQuestionInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionBody"
+          description: Created
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Add a question to a quiz block
+  /blocks/{id}/topics:
+    put:
+      operationId: setBlockTopics
+      parameters:
+        - description: Block id
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Block id
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetTopicsInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopicIDsOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Replace a block's topic tags
   /courses:
     get:
       operationId: listCourses
@@ -789,6 +1000,54 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
       summary: Reorder a module
+  /questions/{id}:
+    patch:
+      operationId: updateQuestion
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateQuestionInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Update a question
+  /questions/{id}/archive:
+    post:
+      operationId: archiveQuestion
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Archive a question
   /topics/{id}:
     patch:
       operationId: updateTopic
