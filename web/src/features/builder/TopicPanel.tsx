@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useArchiveTopic, useCreateTopic } from '../../api/hooks'
 import { Button } from '../../components/Button'
 import { Card } from '../../components/Card'
+import { ErrorBanner } from '../../components/ErrorBanner'
 import { Field } from '../../components/Field'
+import { asApiError } from '../../api/errors'
 
 export function TopicPanel({
   courseId,
@@ -28,7 +30,13 @@ export function TopicPanel({
         className="flex items-end gap-2"
         onSubmit={(e) => {
           e.preventDefault()
-          create.mutate(title, { onSuccess: () => setTitle('') })
+          const value = title.trim()
+          if (!value) return
+          // Clear on SUBMIT, not on success. Clearing in onSuccess wipes text
+          // the user has already typed for the next item, and then submits an
+          // empty title the server rejects. Restore it if the create fails.
+          setTitle('')
+          create.mutate(value, { onError: () => setTitle(value) })
         }}
       >
         <div className="flex-1">
@@ -38,6 +46,8 @@ export function TopicPanel({
           Add
         </Button>
       </form>
+
+      <ErrorBanner error={asApiError(create.error ?? archive.error)} />
 
       <ul className="space-y-1">
         {topics.map((t) => (

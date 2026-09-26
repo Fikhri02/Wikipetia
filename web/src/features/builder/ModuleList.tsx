@@ -12,9 +12,15 @@ import { BlockList } from './BlockList'
 import { Button } from '../../components/Button'
 import { Card } from '../../components/Card'
 import { EmptyState } from '../../components/EmptyState'
+import { ErrorBanner } from '../../components/ErrorBanner'
 import { Field } from '../../components/Field'
+import { asApiError } from '../../api/errors'
 
-type ModuleShape = { id: string; title: string; sort_key: string; blocks?: unknown }
+import type { components } from '../../api/types'
+
+// Straight from the generated contract: a renamed Go field now fails tsc here,
+// which is the whole reason the contract is generated.
+type ModuleShape = components['schemas']['OutlineModuleBody']
 type TopicShape = { id: string; title: string }
 
 export function ModuleList({
@@ -44,13 +50,23 @@ export function ModuleList({
     move.mutate({ id, before, after, optimistic })
   }
 
+  // Reorder and archive are easy to fail silently: the optimistic update rolls
+  // back and the list simply snaps to its old order. Surface every one.
+  const failure = asApiError(create.error ?? rename.error ?? archive.error ?? move.error)
+
   return (
     <section className="space-y-4">
+      <ErrorBanner error={failure} />
+
       <form
         className="flex items-end gap-3"
         onSubmit={(e) => {
           e.preventDefault()
-          create.mutate(title, { onSuccess: () => setTitle('') })
+          const value = title.trim()
+          if (!value) return
+          // Clear on submit, restore on failure — see TopicPanel.
+          setTitle('')
+          create.mutate(value, { onError: () => setTitle(value) })
         }}
       >
         <div className="flex-1">
@@ -108,7 +124,7 @@ export function ModuleList({
                 </Button>
               </div>
 
-              <BlockList courseId={courseId} moduleId={m.id} blocks={(m.blocks as never) ?? []} topics={topics} />
+              <BlockList courseId={courseId} moduleId={m.id} blocks={m.blocks ?? []} topics={topics} />
             </Card>
           </li>
         ))}

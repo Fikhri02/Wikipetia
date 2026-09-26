@@ -12,7 +12,7 @@ import (
 )
 
 type outlineBlockBody struct {
-	blockBody
+	BlockBody
 	TopicIDs      []uuid.UUID `json:"topic_ids"`
 	QuestionCount int         `json:"question_count"`
 }
@@ -59,7 +59,7 @@ func (s *server) registerOutlineRoutes(api huma.API) {
 			blocks := make([]outlineBlockBody, 0, len(mod.Blocks))
 			for _, b := range mod.Blocks {
 				blocks = append(blocks, outlineBlockBody{
-					blockBody:     blockToBody(b.Block),
+					BlockBody:     blockToBody(b.Block),
 					TopicIDs:      b.TopicIDs,
 					QuestionCount: b.QuestionCount,
 				})

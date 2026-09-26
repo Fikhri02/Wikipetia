@@ -451,18 +451,37 @@ components:
     OutlineBlockBody:
       additionalProperties: false
       properties:
+        completion: {}
+        content: {}
+        id:
+          type: string
+        module_id:
+          type: string
         question_count:
           format: int64
           type: integer
+        sort_key:
+          type: string
+        title:
+          type: string
         topic_ids:
           items:
             type: string
           type:
             - array
             - "null"
+        type:
+          type: string
       required:
         - topic_ids
         - question_count
+        - id
+        - module_id
+        - title
+        - type
+        - sort_key
+        - content
+        - completion
       type: object
     OutlineModuleBody:
       additionalProperties: false

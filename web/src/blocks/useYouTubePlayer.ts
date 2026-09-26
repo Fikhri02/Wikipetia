@@ -27,7 +27,7 @@ export function loadYouTubeApi(): Promise<typeof YT> {
   if (window.YT?.Player) return Promise.resolve(window.YT)
   if (apiPromise) return apiPromise
 
-  apiPromise = new Promise<typeof YT>((resolve) => {
+  apiPromise = new Promise<typeof YT>((resolve, reject) => {
     const previous = window.onYouTubeIframeAPIReady
     window.onYouTubeIframeAPIReady = () => {
       previous?.()
@@ -37,6 +37,15 @@ export function loadYouTubeApi(): Promise<typeof YT> {
     const script = document.createElement('script')
     script.src = 'https://www.youtube.com/iframe_api'
     script.async = true
+    // Without this the promise can only ever resolve, so an offline learner —
+    // or one behind an extension or DNS block — waits forever on a black box
+    // with no error and no way to complete the block.
+    script.onerror = () => {
+      // Clear the cached promise so a remount can retry rather than inheriting
+      // this rejection for the life of the page.
+      apiPromise = null
+      reject(new Error('the YouTube player could not be loaded'))
+    }
     document.head.appendChild(script)
   })
 

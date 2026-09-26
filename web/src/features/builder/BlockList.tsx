@@ -1,19 +1,17 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useArchiveBlock, useCreateBlock, useMoveBlock } from '../../api/hooks'
 import { moveWithin } from './reorder'
 import { BlockEditor } from './BlockEditor'
 import { BLOCK_TYPES, type BlockType } from '../../blocks/schemas'
 import { Button } from '../../components/Button'
+import { ErrorBanner } from '../../components/ErrorBanner'
 import { Field } from '../../components/Field'
+import { asApiError } from '../../api/errors'
 
-type BlockShape = {
-  id: string
-  title: string
-  type: string
-  content: unknown
-  topic_ids?: string[] | null
-  question_count?: number
-}
+import type { components } from '../../api/types'
+
+// Straight from the generated contract — see ModuleList.
+type BlockShape = components['schemas']['OutlineBlockBody']
 
 const defaultContent: Record<BlockType, unknown> = {
   reading: { body_md: 'Write the reading here.' },
@@ -45,6 +43,8 @@ export function BlockList({
   const [title, setTitle] = useState('')
   const [type, setType] = useState<BlockType>('reading')
   const [openId, setOpenId] = useState<string | null>(null)
+  // One BlockList per module, so this id must be per-instance.
+  const typeId = useId()
 
   function reorder(id: string, direction: -1 | 1) {
     const { before, after } = moveWithin(blocks, id, direction)
@@ -52,17 +52,25 @@ export function BlockList({
     move.mutate({ id, before, after })
   }
 
+  const failure = asApiError(create.error ?? archive.error ?? move.error)
+
   return (
     <div className="space-y-3 border-t border-line pt-3">
+      <ErrorBanner error={failure} />
+
       <form
         className="flex items-end gap-2"
         onSubmit={(e) => {
           e.preventDefault()
           // A new block starts valid: the server rejects an empty reading body,
           // so seeding placeholder content keeps creation one click.
+          const value = title.trim()
+          if (!value) return
+          // Clear on submit, restore on failure — see TopicPanel.
+          setTitle('')
           create.mutate(
-            { moduleId, title, type, content: defaultContent[type] },
-            { onSuccess: () => setTitle('') },
+            { moduleId, title: value, type, content: defaultContent[type] },
+            { onError: () => setTitle(value) },
           )
         }}
       >
@@ -75,11 +83,11 @@ export function BlockList({
           />
         </div>
         <div className="space-y-1">
-          <label htmlFor="block-type" className="block text-sm font-medium">
+          <label htmlFor={typeId} className="block text-sm font-medium">
             Block type
           </label>
           <select
-            id="block-type"
+            id={typeId}
             value={type}
             onChange={(e) => setType(e.target.value as BlockType)}
             className="rounded-md border border-line px-2 py-1.5 text-sm"

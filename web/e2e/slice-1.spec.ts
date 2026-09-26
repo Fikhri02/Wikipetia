@@ -19,35 +19,52 @@ test('build a course, study it, and see mastery move', async ({ page }) => {
   await page.getByRole('button', { name: 'Create course' }).click()
   await page.getByText(courseTitle).click()
 
-  await page.getByLabel('New topic').fill('Atoms')
-  // `exact` matters: "Add" is a substring of "Add module", "Add block",
-  // "Add option" and "Add question", and Playwright name matching is
-  // substring-based by default.
-  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  // The definition of done specifies FOUR topics and TWO modules; run that,
+  // not a reduced version of it.
+  for (const topic of ['Atoms', 'Bonding', 'Moles', 'Acids']) {
+    await page.getByLabel('New topic').fill(topic)
+    // `exact` matters: "Add" is a substring of "Add module", "Add block",
+    // "Add option" and "Add question", and Playwright name matching is
+    // substring-based by default.
+    await page.getByRole('button', { name: 'Add', exact: true }).click()
+  }
+  await expect(page.getByText('4 topics')).toBeVisible()
 
-  await page.getByLabel('New module').fill('Module 1')
-  await page.getByRole('button', { name: 'Add module' }).click()
+  for (const mod of ['Module 1', 'Module 2']) {
+    await page.getByLabel('New module').fill(mod)
+    await page.getByRole('button', { name: 'Add module' }).click()
+  }
+  await expect(page.getByText('2 modules · 4 topics')).toBeVisible()
+
+  // Reordering is the one optimistic write in the builder — exercise it.
+  await page.getByRole('button', { name: 'Move Module 2 up' }).click()
+  await expect(page.getByLabel('Module title: Module 2')).toBeVisible()
+  await page.getByRole('button', { name: 'Move Module 2 down' }).click()
+
+  // Two modules means two "Block title" fields, so scope to the first module's
+  // list item. This is why Field uses useId rather than a label-derived id.
+  const firstModule = page.getByRole('listitem').filter({ has: page.getByLabel('Module title: Module 1') })
 
   // A reading block.
-  await page.getByLabel('Block title').fill('What is an atom?')
-  await page.getByLabel('Block type').selectOption('reading')
-  await page.getByRole('button', { name: 'Add block' }).click()
-  await page.getByRole('button', { name: 'Edit What is an atom?' }).click()
-  await page.getByLabel('Body (Markdown)').fill('# Atoms\n\nAn atom is the smallest unit of an element.')
-  await page.getByRole('button', { name: 'Save reading' }).click()
-  await page.getByRole('button', { name: 'Atoms', exact: true }).click() // tag the topic
+  await firstModule.getByLabel('Block title').fill('What is an atom?')
+  await firstModule.getByLabel('Block type').selectOption('reading')
+  await firstModule.getByRole('button', { name: 'Add block' }).click()
+  await firstModule.getByRole('button', { name: 'Edit What is an atom?' }).click()
+  await firstModule.getByLabel('Body (Markdown)').fill('# Atoms\n\nAn atom is the smallest unit of an element.')
+  await firstModule.getByRole('button', { name: 'Save reading' }).click()
+  await firstModule.getByRole('button', { name: 'Atoms', exact: true }).click() // tag the topic
 
   // A quiz block with one question.
-  await page.getByLabel('Block title').fill('Check yourself')
-  await page.getByLabel('Block type').selectOption('quiz')
-  await page.getByRole('button', { name: 'Add block' }).click()
-  await page.getByRole('button', { name: 'Edit Check yourself' }).click()
-  await page.getByLabel('Kind').selectOption('true_false')
-  await page.getByLabel('Question').fill('Iron is an element')
+  await firstModule.getByLabel('Block title').fill('Check yourself')
+  await firstModule.getByLabel('Block type').selectOption('quiz')
+  await firstModule.getByRole('button', { name: 'Add block' }).click()
+  await firstModule.getByRole('button', { name: 'Edit Check yourself' }).click()
+  await firstModule.getByLabel('Kind').selectOption('true_false')
+  await firstModule.getByLabel('Question').fill('Iron is an element')
   // exact: "Topic" is a substring of "New topic" in the topic panel, and
   // Playwright label matching is substring-based by default.
-  await page.getByLabel('Topic', { exact: true }).selectOption({ label: 'Atoms' })
-  await page.getByRole('button', { name: 'Add question' }).click()
+  await firstModule.getByLabel('Topic', { exact: true }).selectOption({ label: 'Atoms' })
+  await firstModule.getByRole('button', { name: 'Add question' }).click()
 
   // --- study ---
   await page.getByRole('link', { name: 'Library' }).click()
@@ -64,7 +81,11 @@ test('build a course, study it, and see mastery move', async ({ page }) => {
   )
 
   await page.getByRole('button', { name: 'Mark as done' }).click()
-  await expect(page.getByText('Completed', { exact: true })).toBeVisible()
+  // Scoped to the reading's own article: "Completed" is also the label of the
+  // progress bar, which is on screen throughout.
+  await expect(
+    page.getByRole('article').filter({ hasText: 'What is an atom?' }).getByText('Completed'),
+  ).toBeVisible()
 
   await page.getByRole('button', { name: /Check yourself/ }).click()
   await page.getByRole('radio', { name: 'True' }).check()
@@ -76,8 +97,10 @@ test('build a course, study it, and see mastery move', async ({ page }) => {
     'aria-valuenow',
     '100',
   )
+  // One of four topics has evidence, so mastery is 25% — the completed/mastered
+  // gap the spec exists to make visible.
   await expect(page.getByRole('progressbar', { name: 'Mastered' })).toHaveAttribute(
     'aria-valuenow',
-    '100',
+    '25',
   )
 })

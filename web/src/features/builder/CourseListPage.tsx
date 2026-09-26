@@ -25,7 +25,11 @@ export function CourseListPage() {
           className="flex items-end gap-3"
           onSubmit={(e) => {
             e.preventDefault()
-            create.mutate(title, { onSuccess: () => setTitle('') })
+            const value = title.trim()
+            if (!value) return
+            // Clear on submit, restore on failure — see TopicPanel.
+            setTitle('')
+            create.mutate(value, { onError: () => setTitle(value) })
           }}
         >
           <div className="flex-1">

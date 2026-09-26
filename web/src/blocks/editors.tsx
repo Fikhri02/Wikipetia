@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { parseBlockContent, type BlockType } from './schemas'
 import { Field } from '../components/Field'
 import { Button } from '../components/Button'
@@ -23,14 +23,15 @@ export function extractVideoId(input: string): string {
 function ReadingEditor({ content, onSave, pending }: EditorProps) {
   const parsed = parseBlockContent('reading', content)
   const [body, setBody] = useState(parsed.ok && 'body_md' in parsed.data ? parsed.data.body_md : '')
+  const bodyId = useId()
 
   return (
     <div className="space-y-2">
-      <label htmlFor="reading-body" className="block text-sm font-medium">
+      <label htmlFor={bodyId} className="block text-sm font-medium">
         Body (Markdown)
       </label>
       <textarea
-        id="reading-body"
+        id={bodyId}
         rows={6}
         value={body}
         onChange={(e) => setBody(e.target.value)}

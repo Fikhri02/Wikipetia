@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from '@tanstack/react-router'
 import { usePlayer } from '../../api/hooks'
 import { ProgressPanel } from './ProgressPanel'
@@ -24,6 +24,13 @@ export function PlayerPage() {
     blocks.find((b) => b.status !== 'completed') ??
     blocks[0]
 
+  // Pin that default as soon as there is one. Without this the fallback is
+  // re-evaluated on every render, so completing a block yanks the learner to
+  // the next one and they never see the confirmation they just earned.
+  useEffect(() => {
+    if (selectedId === null && selected) setSelectedId(selected.id)
+  }, [selectedId, selected])
+
   if (player.isLoading) return <Spinner />
   if (player.error) return <ErrorBanner error={asApiError(player.error)} />
   if (!player.data) return null
@@ -46,7 +53,11 @@ export function PlayerPage() {
 
         <div>
           {selected ? (
-            <BlockSurface enrolmentId={enrolmentId} block={selected} />
+            // `key` is load-bearing: without it React reuses the same
+            // BlockSurface instance across a block change, so a quiz score, a
+            // stale error, and a torn-down YouTube iframe all leak into the
+            // next block.
+            <BlockSurface key={selected.id} enrolmentId={enrolmentId} block={selected} />
           ) : (
             <p className="text-muted">This course has no blocks yet.</p>
           )}

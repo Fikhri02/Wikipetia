@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes } from 'react'
+import { useId, type InputHTMLAttributes } from 'react'
 
 type Props = InputHTMLAttributes<HTMLInputElement> & {
   label: string
@@ -6,7 +6,11 @@ type Props = InputHTMLAttributes<HTMLInputElement> & {
 }
 
 export function Field({ label, error, id, className = '', ...rest }: Props) {
-  const inputId = id ?? `field-${label.toLowerCase().replace(/\s+/g, '-')}`
+  // useId, not the label text: the builder renders one "Block title" field per
+  // module, so label-derived ids collide the moment a course has two modules —
+  // both labels then point at the first input.
+  const generated = useId()
+  const inputId = id ?? generated
   return (
     <div className="space-y-1">
       <label htmlFor={inputId} className="block text-sm font-medium">

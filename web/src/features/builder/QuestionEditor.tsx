@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useArchiveQuestion, useCreateQuestion, useQuestions } from '../../api/hooks'
 import { parseQuestionPrompt, QUESTION_KINDS, type QuestionKind } from '../../blocks/schemas'
 import { Button } from '../../components/Button'
@@ -22,6 +22,10 @@ export function QuestionEditor({
   blockId: string
   topics: { id: string; title: string }[]
 }) {
+  // Instance-scoped: a quiz block can be open in more than one module at once,
+  // and hardcoded ids would make both labels point at the first select.
+  const kindId = useId()
+  const topicId_ = useId()
   const questions = useQuestions(blockId, true)
   const create = useCreateQuestion(blockId, courseId)
   const archive = useArchiveQuestion(blockId, courseId)
@@ -69,11 +73,11 @@ export function QuestionEditor({
 
       <div className="space-y-3 rounded-md bg-slate-50 p-3">
         <div className="space-y-1">
-          <label htmlFor="question-kind" className="block text-sm font-medium">
+          <label htmlFor={kindId} className="block text-sm font-medium">
             Kind
           </label>
           <select
-            id="question-kind"
+            id={kindId}
             value={kind}
             onChange={(e) => setKind(e.target.value as QuestionKind)}
             className="rounded-md border border-line px-2 py-1.5 text-sm"
@@ -158,11 +162,11 @@ export function QuestionEditor({
         )}
 
         <div className="space-y-1">
-          <label htmlFor="question-topic" className="block text-sm font-medium">
+          <label htmlFor={topicId_} className="block text-sm font-medium">
             Topic
           </label>
           <select
-            id="question-topic"
+            id={topicId_}
             value={topicId}
             onChange={(e) => setTopicId(e.target.value)}
             className="rounded-md border border-line px-2 py-1.5 text-sm"

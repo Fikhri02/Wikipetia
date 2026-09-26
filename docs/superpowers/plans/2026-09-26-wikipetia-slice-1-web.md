@@ -948,6 +948,23 @@ export function unwrap<T>(result: { data?: T; error?: unknown; response: Respons
   return result.data
 }
 
+/**
+ * For the 204 No Content endpoints (archives and moves). These cannot use
+ * `unwrap`, which requires a body — but they must not use a bare
+ * `error !== undefined` check either: openapi-fetch leaves `error` undefined for
+ * ANY response with no body, non-ok included, so a 502 from a gateway was
+ * indistinguishable from a successful 204. An archive that failed reported
+ * success, and a failed move never rolled its optimistic update back.
+ */
+export function expectNoContent(result: { error?: unknown; response: Response }): void {
+  if (result.error !== undefined) throw apiError(result.error)
+  if (!result.response.ok) {
+    throw apiError(
+      new Error(`server returned ${result.response.status} ${result.response.statusText}`.trim()),
+    )
+  }
+}
+
 export type { ApiError }
 
 export function useEnrolments() {
@@ -1036,7 +1053,7 @@ export function Button({ variant = 'primary', className = '', ...rest }: Props) 
 `Field.tsx` — an input that can show its server-side error:
 
 ```tsx
-import type { InputHTMLAttributes } from 'react'
+import { useId, type InputHTMLAttributes } from 'react'
 
 type Props = InputHTMLAttributes<HTMLInputElement> & {
   label: string
@@ -1044,7 +1061,11 @@ type Props = InputHTMLAttributes<HTMLInputElement> & {
 }
 
 export function Field({ label, error, id, className = '', ...rest }: Props) {
-  const inputId = id ?? `field-${label.toLowerCase().replace(/\s+/g, '-')}`
+  // useId, not the label text: the builder renders one "Block title" field per
+  // module, so label-derived ids collide the moment a course has two modules —
+  // both labels then point at the first input.
+  const generated = useId()
+  const inputId = id ?? generated
   return (
     <div className="space-y-1">
       <label htmlFor={inputId} className="block text-sm font-medium">
@@ -1350,7 +1371,7 @@ export function useArchiveCourse() {
       const res = await api.POST('/courses/{id}/archive', {
         params: { path: { id: courseId } },
       })
-      if (res.error !== undefined) throw apiError(res.error)
+      expectNoContent(res)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.courses }),
   })
@@ -1454,7 +1475,11 @@ export function CourseListPage() {
           className="flex items-end gap-3"
           onSubmit={(e) => {
             e.preventDefault()
-            create.mutate(title, { onSuccess: () => setTitle('') })
+            const value = title.trim()
+          if (!value) return
+          // Clear on submit, restore on failure — see TopicPanel.
+          setTitle('')
+          create.mutate(value, { onError: () => setTitle(value) })
           }}
         >
           <div className="flex-1">
@@ -1510,7 +1535,9 @@ import { useState } from 'react'
 import { useUpdateCourse, type CoursePatch } from '../../api/hooks'
 import { Button } from '../../components/Button'
 import { Card } from '../../components/Card'
+import { ErrorBanner } from '../../components/ErrorBanner'
 import { Field } from '../../components/Field'
+import { asApiError } from '../../api/errors'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { fieldError, type ApiError } from '../../api/errors'
 
@@ -1765,7 +1792,7 @@ export function useArchiveModule(courseId: string) {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.POST('/modules/{id}/archive', { params: { path: { id } } })
-      if (res.error !== undefined) throw apiError(res.error)
+      expectNoContent(res)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
   })
@@ -1789,7 +1816,7 @@ export function useMoveModule(courseId: string) {
         params: { path: { id: vars.id } },
         body: { before: vars.before, after: vars.after },
       })
-      if (res.error !== undefined) throw apiError(res.error)
+      expectNoContent(res)
     },
     onMutate: async (vars) => {
       await qc.cancelQueries({ queryKey: qk.outline(courseId) })
@@ -1850,7 +1877,7 @@ export function useArchiveBlock(courseId: string) {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.POST('/blocks/{id}/archive', { params: { path: { id } } })
-      if (res.error !== undefined) throw apiError(res.error)
+      expectNoContent(res)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
   })
@@ -1864,7 +1891,7 @@ export function useMoveBlock(courseId: string) {
         params: { path: { id: vars.id } },
         body: { before: vars.before, after: vars.after },
       })
-      if (res.error !== undefined) throw apiError(res.error)
+      expectNoContent(res)
     },
     onSettled: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
   })
@@ -1941,7 +1968,9 @@ import { BlockList } from './BlockList'
 import { Button } from '../../components/Button'
 import { Card } from '../../components/Card'
 import { EmptyState } from '../../components/EmptyState'
+import { ErrorBanner } from '../../components/ErrorBanner'
 import { Field } from '../../components/Field'
+import { asApiError } from '../../api/errors'
 
 type ModuleShape = { id: string; title: string; sort_key: string; blocks?: unknown }
 type TopicShape = { id: string; title: string }
@@ -1973,13 +2002,25 @@ export function ModuleList({
     move.mutate({ id, before, after, optimistic })
   }
 
+  // Reorder and archive are easy to fail silently: the optimistic update rolls
+  // back and the list simply snaps to its old order. Surface every one.
+  const failure = asApiError(create.error ?? rename.error ?? archive.error ?? move.error)
+
   return (
     <section className="space-y-4">
+      <ErrorBanner error={failure} />
+
       <form
         className="flex items-end gap-3"
         onSubmit={(e) => {
           e.preventDefault()
-          create.mutate(title, { onSuccess: () => setTitle('') })
+          const value = title.trim()
+          if (!value) return
+          // Clear on SUBMIT, not on success. Clearing in onSuccess wipes text
+          // the user has already typed for the next item, and then submits an
+          // empty title the server rejects. Restore it if the create fails.
+          setTitle('')
+          create.mutate(value, { onError: () => setTitle(value) })
         }}
       >
         <div className="flex-1">
@@ -2050,13 +2091,15 @@ export function ModuleList({
 And `BlockList.tsx`. Blocks reorder through `moveWithin` and `useMoveBlock` exactly as modules do, but **without** the optimistic cache rewrite — a block list is short and the invalidation round-trip is imperceptible. Optimism is spent where it is felt.
 
 ```tsx
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useArchiveBlock, useCreateBlock, useMoveBlock } from '../../api/hooks'
 import { moveWithin } from './reorder'
 import { BlockEditor } from './BlockEditor'
 import { BLOCK_TYPES, type BlockType } from '../../blocks/schemas'
 import { Button } from '../../components/Button'
+import { ErrorBanner } from '../../components/ErrorBanner'
 import { Field } from '../../components/Field'
+import { asApiError } from '../../api/errors'
 
 type BlockShape = {
   id: string
@@ -2097,6 +2140,8 @@ export function BlockList({
   const [title, setTitle] = useState('')
   const [type, setType] = useState<BlockType>('reading')
   const [openId, setOpenId] = useState<string | null>(null)
+  // One BlockList per module, so this id must be per-instance.
+  const typeId = useId()
 
   function reorder(id: string, direction: -1 | 1) {
     const { before, after } = moveWithin(blocks, id, direction)
@@ -2104,17 +2149,25 @@ export function BlockList({
     move.mutate({ id, before, after })
   }
 
+  const failure = asApiError(create.error ?? archive.error ?? move.error)
+
   return (
     <div className="space-y-3 border-t border-line pt-3">
+      <ErrorBanner error={failure} />
+
       <form
         className="flex items-end gap-2"
         onSubmit={(e) => {
           e.preventDefault()
           // A new block starts valid: the server rejects an empty reading body,
           // so seeding placeholder content keeps creation one click.
+          const value = title.trim()
+          if (!value) return
+          // Clear on submit, restore on failure — see TopicPanel.
+          setTitle('')
           create.mutate(
-            { moduleId, title, type, content: defaultContent[type] },
-            { onSuccess: () => setTitle('') },
+            { moduleId, title: value, type, content: defaultContent[type] },
+            { onError: () => setTitle(value) },
           )
         }}
       >
@@ -2127,11 +2180,11 @@ export function BlockList({
           />
         </div>
         <div className="space-y-1">
-          <label htmlFor="block-type" className="block text-sm font-medium">
+          <label htmlFor={typeId} className="block text-sm font-medium">
             Block type
           </label>
           <select
-            id="block-type"
+            id={typeId}
             value={type}
             onChange={(e) => setType(e.target.value as BlockType)}
             className="rounded-md border border-line px-2 py-1.5 text-sm"
@@ -2352,7 +2405,7 @@ export function useArchiveTopic(courseId: string) {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.POST('/topics/{id}/archive', { params: { path: { id } } })
-      if (res.error !== undefined) throw apiError(res.error)
+      expectNoContent(res)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
   })
@@ -2411,7 +2464,7 @@ export function useArchiveQuestion(blockId: string, courseId: string) {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.POST('/questions/{id}/archive', { params: { path: { id } } })
-      if (res.error !== undefined) throw apiError(res.error)
+      expectNoContent(res)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.questions(blockId) })
@@ -2428,7 +2481,7 @@ export function useArchiveQuestion(blockId: string, courseId: string) {
 The authoring half of the registry. Adding a block type means adding one entry here and one in `players.tsx`.
 
 ```tsx
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { parseBlockContent, type BlockType } from './schemas'
 import { Field } from '../components/Field'
 import { Button } from '../components/Button'
@@ -2442,14 +2495,15 @@ export type EditorProps = {
 function ReadingEditor({ content, onSave, pending }: EditorProps) {
   const parsed = parseBlockContent('reading', content)
   const [body, setBody] = useState(parsed.ok && 'body_md' in parsed.data ? parsed.data.body_md : '')
+  const bodyId = useId()
 
   return (
     <div className="space-y-2">
-      <label htmlFor="reading-body" className="block text-sm font-medium">
+      <label htmlFor={bodyId} className="block text-sm font-medium">
         Body (Markdown)
       </label>
       <textarea
-        id="reading-body"
+        id={bodyId}
         rows={6}
         value={body}
         onChange={(e) => setBody(e.target.value)}
@@ -2563,6 +2617,8 @@ export function TopicPanel({
           Add
         </Button>
       </form>
+
+      <ErrorBanner error={asApiError(create.error ?? archive.error)} />
 
       <ul className="space-y-1">
         {topics.map((t) => (
@@ -2737,7 +2793,7 @@ describe('QuestionEditor', () => {
 The accessible names here (`Question`, `Kind`, `Topic`, `Option 1`, `Option 2 is correct`, `Add question`) are the contract the Playwright test in Task 12 drives. Change the component rather than the test if they need to differ.
 
 ```tsx
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useArchiveQuestion, useCreateQuestion, useQuestions } from '../../api/hooks'
 import { parseQuestionPrompt, QUESTION_KINDS, type QuestionKind } from '../../blocks/schemas'
 import { Button } from '../../components/Button'
@@ -2761,6 +2817,10 @@ export function QuestionEditor({
   blockId: string
   topics: { id: string; title: string }[]
 }) {
+  // Instance-scoped: a quiz block can be open in more than one module at once,
+  // and hardcoded ids would make both labels point at the first select.
+  const kindId = useId()
+  const topicId_ = useId()
   const questions = useQuestions(blockId, true)
   const create = useCreateQuestion(blockId, courseId)
   const archive = useArchiveQuestion(blockId, courseId)
@@ -2811,11 +2871,11 @@ export function QuestionEditor({
 
       <div className="space-y-3 rounded-md bg-slate-50 p-3">
         <div className="space-y-1">
-          <label htmlFor="question-kind" className="block text-sm font-medium">
+          <label htmlFor={kindId} className="block text-sm font-medium">
             Kind
           </label>
           <select
-            id="question-kind"
+            id={kindId}
             value={kind}
             onChange={(e) => setKind(e.target.value as QuestionKind)}
             className="rounded-md border border-line px-2 py-1.5 text-sm"
@@ -2900,11 +2960,11 @@ export function QuestionEditor({
         )}
 
         <div className="space-y-1">
-          <label htmlFor="question-topic" className="block text-sm font-medium">
+          <label htmlFor={topicId_} className="block text-sm font-medium">
             Topic
           </label>
           <select
-            id="question-topic"
+            id={topicId_}
             value={topicId}
             onChange={(e) => setTopicId(e.target.value)}
             className="rounded-md border border-line px-2 py-1.5 text-sm"
@@ -3170,7 +3230,7 @@ export function BlockNav({
 And `PlayerPage.tsx`, which loads the view, keeps the selected block in component state (defaulting to the first unfinished one) and delegates rendering to the registry from Task 9:
 
 ```tsx
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from '@tanstack/react-router'
 import { usePlayer } from '../../api/hooks'
 import { ProgressPanel } from './ProgressPanel'
@@ -3196,6 +3256,13 @@ export function PlayerPage() {
     blocks.find((b) => b.status !== 'completed') ??
     blocks[0]
 
+  // Pin that default as soon as there is one. Without this the fallback is
+  // re-evaluated on every render, so completing a block yanks the learner to
+  // the next one and they never see the confirmation they just earned.
+  useEffect(() => {
+    if (selectedId === null && selected) setSelectedId(selected.id)
+  }, [selectedId, selected])
+
   if (player.isLoading) return <Spinner />
   if (player.error) return <ErrorBanner error={player.error as ApiError} />
   if (!player.data) return null
@@ -3218,7 +3285,11 @@ export function PlayerPage() {
 
         <div>
           {selected ? (
-            <BlockSurface enrolmentId={enrolmentId} block={selected} />
+            // `key` is load-bearing: without it React reuses the same
+            // BlockSurface instance across a block change, so a quiz score, a
+            // stale error, and a torn-down YouTube iframe all leak into the
+            // next block.
+            <BlockSurface key={selected.id} enrolmentId={enrolmentId} block={selected} />
           ) : (
             <p className="text-muted">This course has no blocks yet.</p>
           )}
@@ -3647,7 +3718,7 @@ export function loadYouTubeApi(): Promise<typeof YT> {
   if (window.YT?.Player) return Promise.resolve(window.YT)
   if (apiPromise) return apiPromise
 
-  apiPromise = new Promise<typeof YT>((resolve) => {
+  apiPromise = new Promise<typeof YT>((resolve, reject) => {
     const previous = window.onYouTubeIframeAPIReady
     window.onYouTubeIframeAPIReady = () => {
       previous?.()
@@ -3657,6 +3728,15 @@ export function loadYouTubeApi(): Promise<typeof YT> {
     const script = document.createElement('script')
     script.src = 'https://www.youtube.com/iframe_api'
     script.async = true
+    // Without this the promise can only ever resolve, so an offline learner —
+    // or one behind an extension or DNS block — waits forever on a black box
+    // with no error and no way to complete the block.
+    script.onerror = () => {
+      // Clear the cached promise so a remount can retry rather than inheriting
+      // this rejection for the life of the page.
+      apiPromise = null
+      reject(new Error('the YouTube player could not be loaded'))
+    }
     document.head.appendChild(script)
   })
 

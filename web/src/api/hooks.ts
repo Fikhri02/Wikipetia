@@ -33,6 +33,23 @@ export function unwrap<T>(result: { data?: T; error?: unknown; response: Respons
   return result.data
 }
 
+/**
+ * For the 204 No Content endpoints (archives and moves). These cannot use
+ * `unwrap`, which requires a body — but they must not use a bare
+ * `error !== undefined` check either: openapi-fetch leaves `error` undefined for
+ * ANY response with no body, non-ok included, so a 502 from a gateway was
+ * indistinguishable from a successful 204. An archive that failed reported
+ * success, and a failed move never rolled its optimistic update back.
+ */
+export function expectNoContent(result: { error?: unknown; response: Response }): void {
+  if (result.error !== undefined) throw apiError(result.error)
+  if (!result.response.ok) {
+    throw apiError(
+      new Error(`server returned ${result.response.status} ${result.response.statusText}`.trim()),
+    )
+  }
+}
+
 export type { ApiError }
 
 export function useEnrolments() {
@@ -130,7 +147,7 @@ export function useArchiveCourse() {
       const res = await api.POST('/courses/{id}/archive', {
         params: { path: { id: courseId } },
       })
-      if (res.error !== undefined) throw apiError(res.error)
+      expectNoContent(res)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.courses }),
   })
@@ -169,7 +186,7 @@ export function useArchiveModule(courseId: string) {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.POST('/modules/{id}/archive', { params: { path: { id } } })
-      if (res.error !== undefined) throw apiError(res.error)
+      expectNoContent(res)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
   })
@@ -193,7 +210,7 @@ export function useMoveModule(courseId: string) {
         params: { path: { id: vars.id } },
         body: { before: vars.before, after: vars.after },
       })
-      if (res.error !== undefined) throw apiError(res.error)
+      expectNoContent(res)
     },
     onMutate: async (vars) => {
       await qc.cancelQueries({ queryKey: qk.outline(courseId) })
@@ -254,7 +271,7 @@ export function useArchiveBlock(courseId: string) {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.POST('/blocks/{id}/archive', { params: { path: { id } } })
-      if (res.error !== undefined) throw apiError(res.error)
+      expectNoContent(res)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
   })
@@ -268,7 +285,7 @@ export function useMoveBlock(courseId: string) {
         params: { path: { id: vars.id } },
         body: { before: vars.before, after: vars.after },
       })
-      if (res.error !== undefined) throw apiError(res.error)
+      expectNoContent(res)
     },
     onSettled: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
   })
@@ -293,7 +310,7 @@ export function useArchiveTopic(courseId: string) {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.POST('/topics/{id}/archive', { params: { path: { id } } })
-      if (res.error !== undefined) throw apiError(res.error)
+      expectNoContent(res)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
   })
@@ -352,7 +369,7 @@ export function useArchiveQuestion(blockId: string, courseId: string) {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.POST('/questions/{id}/archive', { params: { path: { id } } })
-      if (res.error !== undefined) throw apiError(res.error)
+      expectNoContent(res)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.questions(blockId) })

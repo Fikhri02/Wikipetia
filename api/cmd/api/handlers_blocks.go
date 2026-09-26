@@ -12,7 +12,7 @@ import (
 	"github.com/Fikhri02/wikipetia/internal/platform/auth"
 )
 
-type blockBody struct {
+type BlockBody struct {
 	ID         uuid.UUID       `json:"id"`
 	ModuleID   uuid.UUID       `json:"module_id"`
 	Title      string          `json:"title"`
@@ -22,20 +22,20 @@ type blockBody struct {
 	Completion json.RawMessage `json:"completion"`
 }
 
-func blockToBody(b course.Block) blockBody {
-	return blockBody{
+func blockToBody(b course.Block) BlockBody {
+	return BlockBody{
 		ID: b.ID, ModuleID: b.ModuleID, Title: b.Title, Type: b.Type,
 		SortKey: b.SortKey, Content: b.Content, Completion: b.Completion,
 	}
 }
 
 type blockOutput struct {
-	Body blockBody
+	Body BlockBody
 }
 
 type blockListOutput struct {
 	Body struct {
-		Blocks []blockBody `json:"blocks"`
+		Blocks []BlockBody `json:"blocks"`
 	}
 }
 
@@ -86,7 +86,7 @@ func (s *server) registerBlockRoutes(api huma.API) {
 			return nil, toHTTP(err)
 		}
 		out := &blockListOutput{}
-		out.Body.Blocks = make([]blockBody, 0, len(list))
+		out.Body.Blocks = make([]BlockBody, 0, len(list))
 		for _, b := range list {
 			out.Body.Blocks = append(out.Body.Blocks, blockToBody(b))
 		}

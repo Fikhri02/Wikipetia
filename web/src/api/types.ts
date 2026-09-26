@@ -676,9 +676,16 @@ export interface components {
             items: components["schemas"]["NamedBody"][] | null;
         };
         OutlineBlockBody: {
+            completion: unknown;
+            content: unknown;
+            id: string;
+            module_id: string;
             /** Format: int64 */
             question_count: number;
+            sort_key: string;
+            title: string;
             topic_ids: string[] | null;
+            type: string;
         };
         OutlineModuleBody: {
             blocks: components["schemas"]["OutlineBlockBody"][] | null;
