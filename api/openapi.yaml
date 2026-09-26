@@ -514,6 +514,149 @@ components:
         - topics
         - modules
       type: object
+    PlayerBlock:
+      additionalProperties: false
+      properties:
+        attempts:
+          format: int64
+          type: integer
+        completion: {}
+        content: {}
+        id:
+          type: string
+        questions:
+          items:
+            $ref: "#/components/schemas/PlayerQuestion"
+          type:
+            - array
+            - "null"
+        score:
+          format: int64
+          type: integer
+        status:
+          type: string
+        title:
+          type: string
+        topic_ids:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        type:
+          type: string
+      required:
+        - id
+        - title
+        - type
+        - content
+        - completion
+        - topic_ids
+        - status
+        - attempts
+      type: object
+    PlayerModule:
+      additionalProperties: false
+      properties:
+        blocks:
+          items:
+            $ref: "#/components/schemas/PlayerBlock"
+          type:
+            - array
+            - "null"
+        id:
+          type: string
+        title:
+          type: string
+      required:
+        - id
+        - title
+        - blocks
+      type: object
+    PlayerQuestion:
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+        prompt: {}
+      required:
+        - id
+        - kind
+        - prompt
+      type: object
+    PlayerTopic:
+      additionalProperties: false
+      properties:
+        level:
+          type: string
+        strength:
+          format: double
+          type: number
+        title:
+          type: string
+        topic_id:
+          type: string
+      required:
+        - topic_id
+        - title
+        - strength
+        - level
+      type: object
+    PlayerView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/PlayerView.json
+          format: uri
+          readOnly: true
+          type: string
+        blocks_completed:
+          format: int64
+          type: integer
+        blocks_total:
+          format: int64
+          type: integer
+        course_id:
+          type: string
+        course_title:
+          type: string
+        enrolment_id:
+          type: string
+        mode:
+          type: string
+        modules:
+          items:
+            $ref: "#/components/schemas/PlayerModule"
+          type:
+            - array
+            - "null"
+        pet_enabled:
+          type: boolean
+        started_at:
+          format: date-time
+          type: string
+        topics:
+          items:
+            $ref: "#/components/schemas/PlayerTopic"
+          type:
+            - array
+            - "null"
+      required:
+        - enrolment_id
+        - course_id
+        - course_title
+        - pet_enabled
+        - mode
+        - started_at
+        - blocks_total
+        - blocks_completed
+        - topics
+        - modules
+      type: object
     QuestionBody:
       additionalProperties: false
       properties:
@@ -1258,6 +1401,31 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
       summary: Submit quiz answers for server-side grading
+  /enrolments/{id}:
+    get:
+      operationId: getEnrolment
+      parameters:
+        - description: Enrolment id
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Enrolment id
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Everything the learning surface needs, in one request
   /health:
     get:
       operationId: health
