@@ -2235,7 +2235,9 @@ describe('CourseBuilderPage', () => {
 
     expect(screen.getByRole('heading', { name: 'Chemistry' })).toBeInTheDocument()
     expect(screen.getByLabelText(/module title: module 1/i)).toBeInTheDocument()
-    expect(screen.getByText('Reading')).toBeInTheDocument()
+    // "Reading" also appears as an <option> in the block-type selector, so
+    // assert on the block row's own control instead.
+    expect(screen.getByLabelText('Edit Reading')).toBeInTheDocument()
   })
 
   it('disables moving the only module in either direction', () => {

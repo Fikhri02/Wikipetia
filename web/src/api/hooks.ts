@@ -120,3 +120,141 @@ export function useArchiveCourse() {
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.courses }),
   })
 }
+
+export function useCreateModule(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (title: string) => {
+      const res = await api.POST('/courses/{id}/modules', {
+        params: { path: { id: courseId } },
+        body: { title },
+      })
+      return unwrap(res)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
+  })
+}
+
+export function useRenameModule(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, title }: { id: string; title: string }) => {
+      const res = await api.PATCH('/modules/{id}', {
+        params: { path: { id } },
+        body: { title },
+      })
+      return unwrap(res)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
+  })
+}
+
+export function useArchiveModule(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.POST('/modules/{id}/archive', { params: { path: { id } } })
+      if (res.error !== undefined) throw apiError(res.error)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
+  })
+}
+
+/**
+ * Optimistic: the list reorders under the cursor, and rolls back if the server
+ * disagrees. One of only two optimistic mutations in the app.
+ */
+export function useMoveModule(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: {
+      id: string
+      before?: string
+      after?: string
+      /** The reordered outline to show while the request is in flight. */
+      optimistic?: unknown
+    }) => {
+      const res = await api.POST('/modules/{id}/move', {
+        params: { path: { id: vars.id } },
+        body: { before: vars.before, after: vars.after },
+      })
+      if (res.error !== undefined) throw apiError(res.error)
+    },
+    onMutate: async (vars) => {
+      await qc.cancelQueries({ queryKey: qk.outline(courseId) })
+      const previous = qc.getQueryData(qk.outline(courseId))
+      if (vars.optimistic) {
+        qc.setQueryData(qk.outline(courseId), vars.optimistic)
+      }
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      // Put the server's truth back; the UI briefly showed a lie.
+      if (context?.previous) qc.setQueryData(qk.outline(courseId), context.previous)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
+  })
+}
+
+export function useCreateBlock(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: {
+      moduleId: string
+      title: string
+      type: 'reading' | 'video_youtube' | 'quiz'
+      content?: unknown
+    }) => {
+      const res = await api.POST('/modules/{id}/blocks', {
+        params: { path: { id: vars.moduleId } },
+        body: { title: vars.title, type: vars.type, content: vars.content },
+      })
+      return unwrap(res)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
+  })
+}
+
+export function useUpdateBlock(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: {
+      id: string
+      title?: string
+      content?: unknown
+      completion?: unknown
+    }) => {
+      const res = await api.PATCH('/blocks/{id}', {
+        params: { path: { id: vars.id } },
+        body: { title: vars.title, content: vars.content, completion: vars.completion },
+      })
+      return unwrap(res)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
+  })
+}
+
+export function useArchiveBlock(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.POST('/blocks/{id}/archive', { params: { path: { id } } })
+      if (res.error !== undefined) throw apiError(res.error)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
+  })
+}
+
+export function useMoveBlock(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { id: string; before?: string; after?: string }) => {
+      const res = await api.POST('/blocks/{id}/move', {
+        params: { path: { id: vars.id } },
+        body: { before: vars.before, after: vars.after },
+      })
+      if (res.error !== undefined) throw apiError(res.error)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.outline(courseId) }),
+  })
+}
